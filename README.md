@@ -12,6 +12,19 @@ This is a Kotlin Multiplatform project targeting Android, iOS.
     Similarly, if you want to edit the Desktop (JVM) specific part, the [jvmMain](./shared/src/jvmMain/kotlin)
     folder is the appropriate location.
 
+### Theme
+
+The UI is themed with **Mindful Scribe**, a design system ported from Google Stitch rather than
+designed in this repo. Before you build a screen or change a colour, read
+[docs/THEME.md](./docs/THEME.md) — it covers where the tokens come from, how to use them, the known
+gaps, and how to re-sync when the design system changes upstream.
+
+Check the palette has not drifted from its source:
+
+```
+python3 tools/check_theme_tokens.py
+```
+
 ### Running the apps
 
 Use the run configurations provided by the run widget in your IDE's toolbar. You can also use these commands and options:

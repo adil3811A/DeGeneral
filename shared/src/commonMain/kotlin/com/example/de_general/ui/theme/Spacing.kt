@@ -21,11 +21,22 @@ data class MindfulSpacing(
     val lg: Dp = 24.dp,
     val xl: Dp = 32.dp,
 
+    /**
+     * Internal padding for cards and reflection modules. The design system asks for 24dp; see the
+     * note on [margin] for why this is 16dp instead.
+     */
+    val cardPadding: Dp = 16.dp,
+
     val gutter: Dp = 16.dp,
     val gutterTablet: Dp = 24.dp,
     val gutterDesktop: Dp = 32.dp,
 
-    val margin: Dp = 20.dp,
+    /**
+     * Screen gutter. The design system specifies 20dp, tightened to 16dp because it stacks with
+     * [cardPadding] on every card: at the design's numbers a phone lost 88dp of 360 to padding
+     * before any content was drawn.
+     */
+    val margin: Dp = 16.dp,
     val marginTablet: Dp = 32.dp,
     val marginDesktop: Dp = 48.dp,
 )

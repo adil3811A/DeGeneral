@@ -79,8 +79,10 @@ Rules of thumb:
   the theme (or in Stitch) first.
 - **Never write a raw `dp` for padding.** Use `MindfulTheme.spacing`. The design system runs on an
   8pt rhythm and ad-hoc values break it quietly.
-- Cards and reflection modules use `spacing.lg` (24dp) internal padding. This is called out
-  explicitly in the design system, not a preference.
+- Cards use `spacing.cardPadding`, never a literal. That token is **16dp, not the design system's
+  24dp**: the screen gutter and the card padding stack, and at the design's numbers a 360dp phone
+  spent 88dp on horizontal padding before drawing anything. `spacing.margin` was tightened from
+  20dp to 16dp for the same reason. Both are deliberate deviations — change them together.
 - Buttons, chips, filters and badges are **pills** — `MindfulShapes.full`, not
   `MaterialTheme.shapes.large`.
 

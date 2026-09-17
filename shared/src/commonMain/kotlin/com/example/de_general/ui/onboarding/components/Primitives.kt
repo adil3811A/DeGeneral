@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.example.de_general.ui.theme.MindfulShapes
+import com.example.de_general.ui.theme.MindfulSpacing
 import com.example.de_general.ui.theme.MindfulTheme
 import com.example.de_general.ui.theme.MindfulTier
 
@@ -54,7 +55,7 @@ fun TieredSurface(
     Box(box) { content() }
 }
 
-/** A card at depth tier 1, with the 24dp internal padding the design system insists on. */
+/** A card at depth tier 1. See [MindfulSpacing.cardPadding] for why it is not the design's 24dp. */
 @Composable
 fun SectionCard(
     modifier: Modifier = Modifier,
@@ -62,7 +63,7 @@ fun SectionCard(
 ) {
     TieredSurface(tier = MindfulTheme.elevation.card, modifier = modifier.fillMaxWidth()) {
         Column(
-            modifier = Modifier.padding(MindfulTheme.spacing.lg),
+            modifier = Modifier.padding(MindfulTheme.spacing.cardPadding),
             verticalArrangement = Arrangement.spacedBy(MindfulTheme.spacing.md),
             content = content,
         )

@@ -6,8 +6,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.tooling.preview.Preview
+import com.example.de_general.ai.DeviceProbe
+import com.example.de_general.ai.ModelStorage
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -20,14 +20,14 @@ class MainActivity : ComponentActivity() {
         )
         super.onCreate(savedInstanceState)
 
+        // Application context, not the activity: the container outlives configuration changes.
+        val container = AppContainer(
+            deviceProbe = DeviceProbe(applicationContext),
+            modelStorage = ModelStorage(applicationContext),
+        )
+
         setContent {
-            App()
+            App(container)
         }
     }
-}
-
-@Preview
-@Composable
-fun AppAndroidPreview() {
-    App()
 }

@@ -25,6 +25,12 @@ Check the palette has not drifted from its source:
 python3 tools/check_theme_tokens.py
 ```
 
+### Local AI
+
+The app runs a local Gemma 3 1B model, downloaded and verified during onboarding.
+[docs/LOCAL_AI.md](./docs/LOCAL_AI.md) covers the pinned model, the resumable install pipeline and
+the load-bearing properties not to regress.
+
 ### Running the apps
 
 Use the run configurations provided by the run widget in your IDE's toolbar. You can also use these commands and options:

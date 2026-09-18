@@ -9,7 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeContentPadding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -77,7 +77,10 @@ fun InstallScreen(
     Surface(modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
         Column(
             modifier = Modifier
-                .safeContentPadding()
+                // safeDrawing, not safeContent: safeContent unions in systemGestures,
+                // which reserves a ~40dp back-swipe strip down each edge and silently
+                // doubles the horizontal inset on gesture-navigation phones.
+                .safeDrawingPadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = spacing.margin, vertical = spacing.lg),
             verticalArrangement = Arrangement.spacedBy(spacing.lg),

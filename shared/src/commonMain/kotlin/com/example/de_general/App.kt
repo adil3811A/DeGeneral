@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeContentPadding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -86,7 +86,7 @@ private fun JournalPlaceholder() {
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
         Column(
             modifier = Modifier
-                .safeContentPadding()
+                .safeDrawingPadding()
                 .padding(MindfulTheme.spacing.margin),
             verticalArrangement = Arrangement.spacedBy(MindfulTheme.spacing.sm, Alignment.CenterVertically),
             horizontalAlignment = Alignment.CenterHorizontally,

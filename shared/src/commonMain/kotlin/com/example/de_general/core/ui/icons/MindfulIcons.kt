@@ -13,8 +13,9 @@ import androidx.compose.ui.unit.dp
  * The icons these screens need, built from Material Symbols Outlined path data.
  *
  * Carried here rather than pulled from a library on purpose: `material-icons-extended` stopped at
- * Compose 1.7.3 and this project is on 1.12, and material3 brings in no icons of its own. Two dozen
- * glyphs is a smaller thing to own than an unmaintained dependency or a multi-megabyte icon font.
+ * Compose 1.7.3 and this project is on 1.12, and material3 brings in no icons of its own. A
+ * couple of dozen glyphs is a smaller thing to own than an unmaintained dependency or a
+ * multi-megabyte icon font.
  *
  * Path data is verbatim from google/material-design-icons (Apache 2.0). The string literals are
  * split at fixed column positions rather than on whitespace — the spaces are significant to the
@@ -284,4 +285,45 @@ val MindfulIcons.Edit: ImageVector
             "M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 " +
             "31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-" +
             "56 56 56Zm-141 85-28-29 57 57-29-28Z",
+    )
+
+val MindfulIcons.Add: ImageVector
+    get() = symbol(
+        name = "add",
+        pathData =
+            "M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z",
+    )
+
+val MindfulIcons.Send: ImageVector
+    get() = symbol(
+        name = "send",
+        pathData =
+            "M120-160v-640l760 320-760 320Zm80-120 474-200-474-200v140l240 60-240 60v140Zm0 0v-40" +
+            "0 400Z",
+    )
+
+val MindfulIcons.Spa: ImageVector
+    get() = symbol(
+        name = "spa",
+        pathData =
+            "M480-80q-73-9-145-39.5T206.5-207Q150-264 115-351T80-560v-40h40q51 0 105 13t101 39q12" +
+            "-86 54.5-176.5T480-880q57 65 99.5 155.5T634-548q47-26 101-39t105-13h40v40q0 122-35 2" +
+            "09t-91.5 144q-56.5 57-128 87.5T480-80Zm-2-82q-11-166-98.5-251T162-518q11 171 101.5 2" +
+            "55T478-162Zm2-254q15-22 36.5-45.5T558-502q-2-57-22.5-119T480-742q-35 59-55.5 121T402" +
+            "-502q20 17 42 40.5t36 45.5Zm78 236q37-12 77-35t74.5-62.5q34.5-39.5 59-98.5T798-518q-" +
+            "94 14-165 62.5T524-332q12 32 20.5 70t13.5 82Zm-78-236Zm78 236Zm-80 18Zm46-170ZM480-8" +
+            "0Z",
+    )
+
+val MindfulIcons.Psychology: ImageVector
+    get() = symbol(
+        name = "psychology",
+        pathData =
+            "M240-80v-172q-57-52-88.5-121.5T120-520q0-150 105-255t255-105q125 0 221.5 73.5T827-61" +
+            "5l52 205q5 19-7 34.5T840-360h-80v120q0 33-23.5 56.5T680-160h-80v80h-80v-160h160v-200" +
+            "h108l-38-155q-23-91-98-148t-172-57q-116 0-198 81t-82 197q0 60 24.5 114t69.5 96l26 24" +
+            "v208h-80Zm254-360Zm-54 80h80l6-50q8-3 14.5-7t11.5-9l46 20 40-68-40-30q2-8 2-16t-2-16" +
+            "l40-30-40-68-46 20q-5-5-11.5-9t-14.5-7l-6-50h-80l-6 50q-8 3-14.5 7t-11.5 9l-46-20-40" +
+            " 68 40 30q-2 8-2 16t2 16l-40 30 40 68 46-20q5 5 11.5 9t14.5 7l6 50Zm40-100q-25 0-42." +
+            "5-17.5T420-520q0-25 17.5-42.5T480-580q25 0 42.5 17.5T540-520q0 25-17.5 42.5T480-460Z",
     )

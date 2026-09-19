@@ -1,8 +1,10 @@
 package com.example.de_general.di
 
+import com.example.de_general.core.ai.LlmEngine
 import com.example.de_general.core.data.DatabaseFactory
 import com.example.de_general.core.data.DeGeneralDatabase
 import com.example.de_general.core.data.createDatabase
+import com.example.de_general.feature.chat.data.ChatRepository
 import com.example.de_general.feature.journal.data.JournalRepository
 import com.example.de_general.feature.onboarding.domain.DeviceProbe
 import com.example.de_general.feature.onboarding.domain.ModelInstaller
@@ -38,4 +40,35 @@ class AppContainer(
     val journalRepository: JournalRepository by lazy {
         JournalRepository(database.journalDao(), now)
     }
+
+    /**
+     * The chat, tied to the journal here rather than in either feature.
+     *
+     * `feature/chat` must not import `feature/journal`, so the two things the companion needs from
+     * the journal — recent entries for context, and a way to save an insight back — arrive as
+     * lambdas. This container is the one place that is allowed to know about both.
+     */
+    val chatRepository: ChatRepository by lazy {
+        ChatRepository(
+            dao = database.chatDao(),
+            now = now,
+            recentJournalEntries = { count ->
+                journalRepository.entries().take(count).map { it.rawText }
+            },
+            saveInsight = { text -> journalRepository.write(text) },
+        )
+    }
+
+    /**
+     * The local model, once something can run it.
+     *
+     * **Null on every build today, and that is the honest value.** `LlmEngine` has no
+     * implementation — running the weights needs llama.cpp through the NDK on Android and an
+     * XCFramework on iOS, neither of which exists. See `docs/LOCAL_AI.md`.
+     *
+     * Null rather than a stub that returns canned text: a chat screen holding a null engine can
+     * tell the user plainly that generation is not wired up, whereas a stub would have to invent
+     * something, and inventing is exactly what this app does not do.
+     */
+    val llmEngine: LlmEngine? = null
 }

@@ -17,8 +17,16 @@ expect class DatabaseFactory {
 /** Context Room runs its queries on. `Dispatchers.IO` is JVM-only. */
 internal expect val databaseQueryContext: CoroutineContext
 
+/**
+ * Opens the database, applying [DeGeneralMigrations] on the way.
+ *
+ * Note what is *not* here: `fallbackToDestructiveMigration`. A schema bump without a matching
+ * migration should fail loudly during development rather than quietly delete someone's journal
+ * on their phone. Entries never leave the device, so there is no copy to restore from.
+ */
 fun DatabaseFactory.createDatabase(): DeGeneralDatabase =
     newBuilder()
         .setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(databaseQueryContext)
+        .addMigrations(*DeGeneralMigrations)
         .build()

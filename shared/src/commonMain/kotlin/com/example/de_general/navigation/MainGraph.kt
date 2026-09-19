@@ -12,8 +12,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import com.example.de_general.di.AppContainer
 import com.example.de_general.feature.chat.ui.ChatScreen
+import com.example.de_general.feature.chat.ui.ChatViewModel
 import com.example.de_general.feature.journal.ui.JournalScreen
 import com.example.de_general.feature.journal.ui.JournalViewModel
+import com.example.de_general.feature.onboarding.domain.GemmaThreeOneB
 import com.example.de_general.feature.settings.ui.SettingsScreen
 
 /**
@@ -25,7 +27,19 @@ import com.example.de_general.feature.settings.ui.SettingsScreen
  */
 fun NavGraphBuilder.mainGraph(navController: NavController, container: AppContainer) {
     navigation<MainGraph>(startDestination = Journal) {
-        composable<Chat> { ChatScreen() }
+        composable<Chat> { backStackEntry ->
+            val viewModel = chatViewModel(backStackEntry, navController, container)
+            val state by viewModel.uiState.collectAsStateWithLifecycle()
+            ChatScreen(
+                state = state,
+                onDraftChange = viewModel::onDraftChange,
+                onSend = viewModel::send,
+                onAttach = viewModel::onAttach,
+                onReflectDeeper = viewModel::reflectDeeper,
+                onSaveInsight = viewModel::saveInsight,
+                onDismissNotice = viewModel::dismissNotice,
+            )
+        }
 
         composable<Journal> { backStackEntry ->
             val viewModel = journalViewModel(backStackEntry, navController, container)
@@ -64,5 +78,30 @@ internal fun journalViewModel(
     }
     return viewModel(parentEntry) {
         JournalViewModel(container.journalRepository)
+    }
+}
+
+/**
+ * One chat view model, scoped to the whole main graph, for the same reason the journal's is: a
+ * half-typed message should survive a look at another tab.
+ *
+ * The model label is derived here from the pinned spec rather than hard-coded in the screen, so
+ * the chip cannot drift from what `ModelSpec.kt` actually pins.
+ */
+@Composable
+private fun chatViewModel(
+    backStackEntry: NavBackStackEntry,
+    navController: NavController,
+    container: AppContainer,
+): ChatViewModel {
+    val parentEntry = remember(backStackEntry) {
+        navController.getBackStackEntry<MainGraph>()
+    }
+    return viewModel(parentEntry) {
+        ChatViewModel(
+            repository = container.chatRepository,
+            engine = container.llmEngine,
+            modelLabel = "${GemmaThreeOneB.displayName} · ${GemmaThreeOneB.quantization}",
+        )
     }
 }

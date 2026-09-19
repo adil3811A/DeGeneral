@@ -86,9 +86,52 @@ rather than faked, and should stay replaced:
 ## Not built yet
 
 `LlmEngine` is an interface with **no implementation**. Running the model needs llama.cpp through
-the NDK on Android and an XCFramework on iOS, and arrives with the journal screen. When it does,
-the install screen's fourth milestone ("Engine ready") should become a real load-and-warm-up
-instead of "the digest matched".
+the NDK on Android and an XCFramework on iOS. When it lands, the install screen's fourth milestone
+("Engine ready") should become a real load-and-warm-up instead of "the digest matched".
+
+It lives in `core/ai/LlmEngine.kt`, not under a feature: onboarding installs the weights and chat
+runs them, and a feature never imports another feature. Alongside `load`/`unload` it now declares
+
+```kotlin
+fun generate(prompt: String): Flow<String>
+```
+
+a token stream, because a 1B model on a phone CPU is slow enough that waiting for a whole answer
+would feel broken.
+
+`AppContainer.llmEngine` is **`null` on every build**, and that is the honest value rather than a
+stub returning canned text. `ChatViewModel` reads it: with no engine, sending stores what the
+person wrote and the screen says so in as many words. Implementing the interface and setting that
+field is the entire remaining wiring — nothing in the chat feature changes.
+
+## What the chat screen deliberately does not claim
+
+Same rule as the onboarding screens, applied to the Stitch screen "Companion Chat - Local AI":
+
+| Design promised | Why it is not there |
+|---|---|
+| "Gemma-2B Local • 0ms Latency" | Wrong model, and a latency nothing measured. The chip reads `Gemma 3 1B · Q4_K_M` from `ModelSpec`. Bring back a speed when one has been timed. |
+| A typing / "Synthesizing" indicator | There is nothing to wait for. Showing one would imply a model is running. |
+| "Add to Morning Intention", "Explore Scripts", "Privacy Vault" | No such features. |
+| Voice dictation | No speech-to-text anywhere in the app. |
+| "Encrypted" on message rows | The app encrypts nothing of its own. Same rule as the journal. |
+| The "Suggested Journal Prompt" card | Needs structured output from a model that has never run. |
+
+What *is* real: the offline badge, the context chip (it counts entries that exist — `0` says "no
+entries yet"), and both reply actions — "Reflect deeper" sends a genuine follow-up turn, "Save
+insight" writes a real journal entry.
+
+The prompt is assembled even though nothing consumes it. `feature/chat/domain/ChatPrompt.kt` is a
+pure function over Gemma's chat template (`<start_of_turn>user` / `<start_of_turn>model`, with the
+framing folded into the first user turn because Gemma has no system role), and `ChatPromptTest`
+pins it. It is the one part of the pipeline that can be proved correct before an engine exists.
+
+## Chat storage
+
+`chat_messages`, added in database **version 2** with an explicit `Migration(1, 2)` in
+`core/data/Migrations.kt`. `createDatabase()` has no destructive fallback on purpose: a missing
+migration should fail loudly in development rather than quietly delete someone's journal, because
+entries never leave the device and there is no copy to restore from.
 
 The iOS `actual`s for `DeviceProbe`, `ModelStorage` and `KeepScreenAwake` are written and compile
 for `iosArm64`/`iosSimulatorArm64`, but have **never been run** — they were written on Linux with
@@ -100,9 +143,10 @@ no Mac available. Treat their runtime behaviour as unproven.
 ./gradlew :shared:testAndroidHostTest
 ```
 
-31 tests: the compatibility table, the formatting helpers, the onboarding entry point, and the
-installer driven end to end against an in-memory filesystem and a scripted server (clean download,
-resume, server-ignores-`Range`, corrupt body, truncated body, 404, pause, delete).
+The compatibility table, the formatting helpers, the onboarding entry point, the Gemma prompt
+template, and the installer driven end to end against an in-memory filesystem and a scripted
+server (clean download, resume, server-ignores-`Range`, corrupt body, truncated body, 404,
+pause, delete).
 
 One trap if you add installer tests: **`MockEngine` does not run on the coroutine test
 scheduler**, so `advanceUntilIdle()` is not a synchronisation point for it. Any test that tries to

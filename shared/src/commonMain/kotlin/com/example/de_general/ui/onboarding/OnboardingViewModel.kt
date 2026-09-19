@@ -18,17 +18,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** Which onboarding screen is showing. */
-enum class OnboardingStep {
-    Welcome,
-    Install,
-
-    /** Placeholder until the journal screen exists. */
-    Done,
-}
-
 data class OnboardingUiState(
-    val step: OnboardingStep = OnboardingStep.Welcome,
     /** Null until the device probe has run. */
     val snapshot: DeviceSnapshot? = null,
     val report: CompatibilityReport? = null,
@@ -40,18 +30,10 @@ data class OnboardingUiState(
 }
 
 /**
- * Where onboarding should open, given what is already on disk.
- *
- * Kept separate from the view model so it can be tested without a platform [DeviceProbe].
- */
-internal fun initialStep(install: InstallState): OnboardingStep = when (install) {
-    InstallState.Installed -> OnboardingStep.Done
-    is InstallState.Paused -> OnboardingStep.Install
-    else -> OnboardingStep.Welcome
-}
-
-/**
  * Drives both onboarding screens.
+ *
+ * Knows nothing about which screen is showing — that is the navigation back stack's job. Scoped to
+ * the onboarding graph, so it and the running download survive moving between Welcome and Install.
  *
  * Two jobs, kept apart:
  *  - reading the device once, so the welcome screen can say something true about it
@@ -72,12 +54,6 @@ class OnboardingViewModel(
     private var downloadJob: Job? = null
 
     init {
-        // Onboarding state is not stored anywhere: it is derived from what is on disk. A user who
-        // already has the weights should not be asked to sit through the device check again, and
-        // one who stopped halfway should land back on the screen with the resume button.
-        _uiState.update {
-            it.copy(step = initialStep(installer.state.value), install = installer.state.value)
-        }
         viewModelScope.launch {
             installer.state.collect { state ->
                 _uiState.update { it.copy(install = state) }
@@ -96,19 +72,14 @@ class OnboardingViewModel(
         }
     }
 
-    fun goTo(step: OnboardingStep) {
-        _uiState.update { it.copy(step = step) }
-    }
-
     /**
-     * Moves to the install screen.
+     * Re-reads what is on disk before the install screen appears.
      *
-     * The download is *not* started automatically. A 769 MB transfer should begin because someone
-     * asked for it, not because a screen appeared.
+     * The download is deliberately *not* started here. A 769 MB transfer should begin because
+     * someone asked for it, not because a screen appeared.
      */
-    fun continueToInstall() {
+    fun prepareInstall() {
         installer.refresh()
-        goTo(OnboardingStep.Install)
     }
 
     fun startOrResumeDownload() {
@@ -141,10 +112,6 @@ class OnboardingViewModel(
 
     fun setKeepScreenAwake(enabled: Boolean) {
         _uiState.update { it.copy(keepScreenAwake = enabled) }
-    }
-
-    fun finishOnboarding() {
-        goTo(OnboardingStep.Done)
     }
 
     override fun onCleared() {

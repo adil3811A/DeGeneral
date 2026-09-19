@@ -2,6 +2,7 @@ package com.example.de_general.feature.chat.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.de_general.core.ai.EngineState
 import com.example.de_general.core.ai.LlmEngine
 import com.example.de_general.feature.chat.data.ChatRepository
 import com.example.de_general.feature.chat.domain.ChatMessage
@@ -12,6 +13,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import okio.Path
+import kotlin.time.TimeSource
 
 /**
  * What the Chat screen draws.
@@ -33,12 +36,16 @@ data class ChatUiState(
     /** How many journal entries were actually found for context. */
     val contextEntryCount: Int = 0,
 
+    /** What the model is doing, straight from the engine. Never inferred here. */
+    val engine: EngineState = EngineState.Idle,
+
     /**
-     * Whether anything can run the model. False on every build today.
+     * The reply as it is being produced, token by token.
      *
-     * @see com.example.de_general.di.AppContainer.llmEngine
+     * Not a database row until it is finished: a half-written answer is a thing happening now, not
+     * part of the transcript. If generation is cancelled, what arrived is kept and stored.
      */
-    val engineAvailable: Boolean = false,
+    val streamingReply: String? = null,
 
     /**
      * A one-off message for the user — "no reply yet", "coming soon".
@@ -50,13 +57,30 @@ data class ChatUiState(
 ) {
     val canSend: Boolean get() = draft.isNotBlank() && !sending
 
+    /** The engine is loaded and idle, so a prompt would actually go somewhere. */
+    val canGenerate: Boolean get() = engine is EngineState.Ready
+
     /**
      * Distinct from "no messages loaded yet".
      *
      * [loading] starts true and only flips once the database has answered, so the empty state
      * never flashes at someone with a long conversation.
      */
-    val isEmpty: Boolean get() = !loading && messages.isEmpty()
+    val isEmpty: Boolean get() = !loading && messages.isEmpty() && streamingReply == null
+
+    /**
+     * What the status chip says about the engine, after the model name.
+     *
+     * Every branch reports something the engine knows. The load time is measured across the actual
+     * call, which is what `docs/LOCAL_AI.md` asks for before a number goes on screen.
+     */
+    val engineLabel: String
+        get() = when (val current = engine) {
+            EngineState.Idle -> "not loaded"
+            EngineState.Loading -> "loading…"
+            is EngineState.Ready -> "ready in ${current.loadMillis} ms"
+            is EngineState.Failed -> "unavailable"
+        }
 
     /** What the context chip says. Reports what was found, never what was asked for. */
     val contextLabel: String
@@ -74,20 +98,19 @@ data class ChatUiState(
  * immutable state, methods the screen reaches only as callbacks, no repository and no
  * `NavController` visible to the screen.
  *
- * [engine] is nullable because there is no inference implementation in this app. When it is null —
- * which is always, today — sending records what the person wrote and then says plainly that no
- * reply is coming. It does not fabricate one, and it does not show a typing indicator for a model
- * that is not running.
+ * The screen owns the engine's lifetime through [loadEngine]/[unloadEngine], called as the Chat
+ * tab is entered and left, so ~770 MB of weights is only resident while there is a conversation
+ * on screen.
  */
 class ChatViewModel(
     private val repository: ChatRepository,
-    private val engine: LlmEngine?,
+    private val engine: LlmEngine,
+    private val modelPath: Path,
     modelLabel: String,
+    private val timeSource: TimeSource = TimeSource.Monotonic,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(
-        ChatUiState(modelLabel = modelLabel, engineAvailable = engine != null),
-    )
+    private val _uiState = MutableStateFlow(ChatUiState(modelLabel = modelLabel))
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
     init {
@@ -96,7 +119,29 @@ class ChatViewModel(
                 _uiState.update { it.copy(messages = messages, loading = false) }
             }
         }
+        viewModelScope.launch {
+            engine.state.collect { state ->
+                _uiState.update { it.copy(engine = state) }
+            }
+        }
         refreshContextCount()
+    }
+
+    /** Called as the Chat tab appears. Safe to call repeatedly; loading twice is a no-op. */
+    fun loadEngine() {
+        viewModelScope.launch { engine.load(modelPath) }
+    }
+
+    /**
+     * Called as the Chat tab goes away.
+     *
+     * Runs on [viewModelScope] precisely because this view model is scoped to the whole main
+     * graph: it is still alive after the screen is gone, so the unload actually completes. A scope
+     * remembered in the composable would be cancelled on the way out and leave the weights
+     * resident.
+     */
+    fun unloadEngine() {
+        viewModelScope.launch { engine.unload() }
     }
 
     fun onDraftChange(text: String) {
@@ -175,25 +220,57 @@ class ChatViewModel(
     }
 
     /**
-     * Asks the model, if there is one.
+     * Asks the model, and streams what comes back.
      *
-     * The prompt is built either way. That is not wasted work: it is the part of this pipeline
-     * that `commonTest` can prove correct before an engine exists, and building it here means the
-     * day one arrives, this function's only change is that the `if` stops being taken.
+     * Tokens land in [ChatUiState.streamingReply] as they arrive and become a database row only
+     * once generation ends — including when it ends early. A reply that was cut off is still
+     * something the model said.
+     *
+     * The speed figure is measured here, across the real generation, by counting emissions. It is
+     * approximate in one honest way: the engine emits *deltas*, which are usually one token but
+     * are not guaranteed to be, so this is "chunks per second" wearing a tokens/sec label. Close
+     * enough to be useful, and far closer than the estimate `docs/LOCAL_AI.md` refused to ship.
      */
     private suspend fun generateReply() {
         val context = repository.journalContext()
         val prompt = buildPrompt(context, repository.messages())
 
-        if (engine == null) {
-            _uiState.update { it.copy(sending = false, notice = NO_ENGINE_NOTICE) }
+        if (!_uiState.value.canGenerate) {
+            _uiState.update { it.copy(sending = false, notice = engineNotice()) }
             return
         }
 
         val reply = StringBuilder()
-        engine.generate(prompt).collect { token -> reply.append(token) }
-        repository.recordModelMessage(reply.toString())
-        _uiState.update { it.copy(sending = false) }
+        var tokens = 0
+        val started = timeSource.markNow()
+
+        try {
+            engine.generate(prompt).collect { delta ->
+                tokens++
+                reply.append(delta)
+                _uiState.update { it.copy(streamingReply = reply.toString()) }
+            }
+        } finally {
+            val elapsed = started.elapsedNow()
+            _uiState.update { it.copy(sending = false, streamingReply = null) }
+            if (reply.isNotBlank()) {
+                val seconds = elapsed.inWholeMilliseconds / 1000.0
+                repository.recordModelMessage(
+                    text = reply.toString(),
+                    // No timing for a reply that arrived in under a millisecond — dividing by
+                    // zero-ish gives a number that says nothing true.
+                    tokensPerSecond = if (seconds > 0.0) tokens / seconds else null,
+                    generationMillis = elapsed.inWholeMilliseconds,
+                )
+            }
+        }
+    }
+
+    /** Why no reply is coming, in the engine's own words where it has any. */
+    private fun engineNotice(): String = when (val current = _uiState.value.engine) {
+        is EngineState.Failed -> current.message
+        EngineState.Loading -> "Still loading the model — try again in a moment."
+        else -> NO_ENGINE_NOTICE
     }
 
     private fun refreshContextCount() {
@@ -205,15 +282,13 @@ class ChatViewModel(
 }
 
 /**
- * What the screen says when there is no engine.
+ * What the screen says when the model is not ready and has given no reason of its own.
  *
- * Names the actual reason rather than a vague failure. The model really is downloaded and really
- * is verified — the missing piece is the runtime, and a user who paid for 806 MB of download
- * deserves to know which half is done.
+ * Names the state rather than apologising vaguely: someone who waited for 806 MB of download
+ * deserves to know which half of the pipeline is not working.
  */
 internal const val NO_ENGINE_NOTICE: String =
-    "No reply yet — on-device generation isn't wired up. The model is downloaded and verified, " +
-        "but nothing can run it yet."
+    "The model isn't loaded, so there's no reply yet."
 
 /** The follow-up "Reflect deeper" sends. A real message, not a hidden instruction. */
 internal const val REFLECT_DEEPER_PROMPT: String =

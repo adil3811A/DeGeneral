@@ -23,7 +23,7 @@ const val DATABASE_FILE_NAME = "de_general.db"
  */
 @Database(
     entities = [JournalEntry::class, ChatMessage::class],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 @ConstructedBy(DeGeneralDatabaseConstructor::class)

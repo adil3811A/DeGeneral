@@ -37,5 +37,19 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
     }
 }
 
+/**
+ * 2 → 3: measured generation speed.
+ *
+ * Two nullable columns, so existing rows need no backfill — and null is the honest value for
+ * them. They were written before anything could time a reply, and inventing a figure for them
+ * is exactly what this app does not do.
+ */
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("ALTER TABLE `chat_messages` ADD COLUMN `tokens_per_second` REAL")
+        connection.execSQL("ALTER TABLE `chat_messages` ADD COLUMN `generation_millis` INTEGER")
+    }
+}
+
 /** Every migration, in order. Passed to the builder in [createDatabase]. */
-val DeGeneralMigrations: Array<Migration> = arrayOf(MIGRATION_1_2)
+val DeGeneralMigrations: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3)

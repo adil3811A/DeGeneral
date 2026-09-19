@@ -24,6 +24,20 @@ data class ChatMessage(
 
     @ColumnInfo(name = "timestamp")
     val timestamp: Long,
+
+    /**
+     * Generation speed, **measured** across this reply — tokens emitted over elapsed time.
+     *
+     * Null on the person's own turns, and null on any reply written before the app could time
+     * one. `docs/LOCAL_AI.md` spent a long time with no speed figure at all precisely because
+     * an estimated one would be a lie; this is the real thing, so it is allowed on screen.
+     */
+    @ColumnInfo(name = "tokens_per_second")
+    val tokensPerSecond: Double? = null,
+
+    /** Wall-clock time the reply took to generate. Null for anything the model did not write. */
+    @ColumnInfo(name = "generation_millis")
+    val generationMillis: Long? = null,
 )
 
 /**

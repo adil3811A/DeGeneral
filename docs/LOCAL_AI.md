@@ -83,26 +83,62 @@ rather than faked, and should stay replaced:
 | "Encrypted weights" | The app encrypts nothing. Android 10+ encrypts app-private storage at rest; the copy says "private sandbox". |
 | Stage 4 "Quantization & cache compilation" | Not a step that exists for a GGUF file. |
 
-## Not built yet
+## The engine
 
-`LlmEngine` is an interface with **no implementation**. Running the model needs llama.cpp through
-the NDK on Android and an XCFramework on iOS. When it lands, the install screen's fourth milestone
-("Engine ready") should become a real load-and-warm-up instead of "the digest matched".
+`core/ai/LlmEngine.kt` is the seam — in `core`, not under a feature, because onboarding installs
+the weights and chat runs them, and a feature never imports another feature. One implementation,
+`LlamatikEngine`, in `commonMain`.
 
-It lives in `core/ai/LlmEngine.kt`, not under a feature: onboarding installs the weights and chat
-runs them, and a feature never imports another feature. Alongside `load`/`unload` it now declares
+### Why llama.cpp, and not LiteRT-LM
 
-```kotlin
-fun generate(prompt: String): Flow<String>
-```
+Checked against the live Hugging Face API:
 
-a token stream, because a 1B model on a phone CPU is slow enough that waiting for a whole answer
-would feel broken.
+| Repo | Format | Gated? |
+|---|---|---|
+| `litert-community/Gemma3-1B-IT` | `.task` / `.litertlm` | **Yes** — unauthenticated GET returns `401 GatedRepo` |
+| `ggml-org/gemma-3-1b-it-GGUF` | `.gguf` | **No** — `"gated": false` |
 
-`AppContainer.llmEngine` is **`null` on every build**, and that is the honest value rather than a
-stub returning canned text. `ChatViewModel` reads it: with no engine, sending stores what the
-person wrote and the screen says so in as many words. Implementing the interface and setting that
-field is the entire remaining wiring — nothing in the chat feature changes.
+`ModelInstaller` does a plain unauthenticated `GET` with `Range` resume. It cannot complete a
+licence click, and an app that promises nothing leaves the device has no business shipping a
+Hugging Face token. Every Gemma build in LiteRT-LM format is gated, so **the ungated artefact
+decides the runtime, not the other way round** — the same reasoning that already rules out
+`google/gemma-3-1b-it-qat-q4_0-gguf`.
+
+Google's runtime is the better engineered one. It is not the one we can download a model for.
+
+### Llamatik
+
+`com.llamatik:library` — a KMP wrapper bundling llama.cpp, in `commonMain` because it publishes
+`android`, `iosArm64` and `iosSimulatorArm64`. On iOS llama.cpp is statically linked into the
+cinterop klib, so there is no Xcode, CMake or XCFramework step. It reads GGUF, so the pinned model,
+its digest and the whole installer are untouched.
+
+Three things to know:
+
+- Its AAR declares `minSdkVersion 26`, which is what pins `android-minSdk` in the version catalog.
+- Its klibs are built with Kotlin 2.2.21 while this project is on 2.4.20. That skew is the first
+  thing to suspect if the iOS or Android compile breaks after a Kotlin upgrade.
+- It is a single-maintainer dependency carrying the app's most important capability. That is why
+  `LlmEngine` stays an interface: swapping the runtime is one file.
+
+`LlamaBridge` also offers `applyChatTemplate(...)` using the template embedded in the GGUF. We do
+not use it — `feature/chat/domain/ChatPrompt.kt` is the tested source of truth and also carries the
+journal context. If replies ever come back malformed, compare the two:
+`LlamaBridge.getModelChatTemplate()` returns Gemma's own.
+
+### Lifetime
+
+The weights are ~770 MB, so `AppContainer` is application-scoped (`DeGeneralApplication` on
+Android, a file-scoped `val` on iOS). Before that the container was rebuilt in
+`MainActivity.onCreate`, which would have meant a second copy of the model on every rotation.
+
+The Chat screen loads on entry and unloads on exit, through `ChatViewModel.loadEngine()` /
+`unloadEngine()`. Unloading runs on `viewModelScope` — the view model is scoped to the main nav
+graph and outlives the screen, whereas a scope remembered in the composable is cancelled on the way
+out and would abandon the unload half-done.
+
+The install screen's fourth milestone ("Engine ready") is still satisfied by a verified file rather
+than a real load-and-warm-up. That is still the honest version of that milestone to build.
 
 ## What the chat screen deliberately does not claim
 
@@ -110,8 +146,8 @@ Same rule as the onboarding screens, applied to the Stitch screen "Companion Cha
 
 | Design promised | Why it is not there |
 |---|---|
-| "Gemma-2B Local • 0ms Latency" | Wrong model, and a latency nothing measured. The chip reads `Gemma 3 1B · Q4_K_M` from `ModelSpec`. Bring back a speed when one has been timed. |
-| A typing / "Synthesizing" indicator | There is nothing to wait for. Showing one would imply a model is running. |
+| "Gemma-2B Local • 0ms Latency" | Wrong model, and a latency nothing measured. The chip reads `Gemma 3 1B · Q4_K_M` from `ModelSpec`, plus the engine's own state. |
+| A typing / "Synthesizing" indicator | Replaced by the real thing: tokens appear as the model produces them. |
 | "Add to Morning Intention", "Explore Scripts", "Privacy Vault" | No such features. |
 | Voice dictation | No speech-to-text anywhere in the app. |
 | "Encrypted" on message rows | The app encrypts nothing of its own. Same rule as the journal. |
@@ -121,6 +157,18 @@ What *is* real: the offline badge, the context chip (it counts entries that exis
 entries yet"), and both reply actions — "Reflect deeper" sends a genuine follow-up turn, "Save
 insight" writes a real journal entry.
 
+### Two numbers that are now allowed on screen
+
+This file spent a long time with no speed figure at all, because an estimated one is a lie. Both of
+these are **measured**, which is the condition that entry always set:
+
+- **tokens/sec under each reply** — counted across the actual generation and stored on the row
+  (`tokens_per_second`, `generation_millis`, database version 3). Null on older replies and on the
+  person's own turns, and absent from the UI rather than guessed. One honest caveat: the engine
+  emits *deltas*, usually but not necessarily one token each, so it is chunks/sec wearing a
+  tokens/sec label.
+- **model load time** on the status chip — timed across `LlmEngine.load`.
+
 The prompt is assembled even though nothing consumes it. `feature/chat/domain/ChatPrompt.kt` is a
 pure function over Gemma's chat template (`<start_of_turn>user` / `<start_of_turn>model`, with the
 framing folded into the first user turn because Gemma has no system role), and `ChatPromptTest`
@@ -129,7 +177,7 @@ pins it. It is the one part of the pipeline that can be proved correct before an
 ## Chat storage
 
 `chat_messages`, added in database **version 2** with an explicit `Migration(1, 2)` in
-`core/data/Migrations.kt`. `createDatabase()` has no destructive fallback on purpose: a missing
+`core/data/Migrations.kt`, and the two measurement columns in **version 3**. `createDatabase()` has no destructive fallback on purpose: a missing
 migration should fail loudly in development rather than quietly delete someone's journal, because
 entries never leave the device and there is no copy to restore from.
 

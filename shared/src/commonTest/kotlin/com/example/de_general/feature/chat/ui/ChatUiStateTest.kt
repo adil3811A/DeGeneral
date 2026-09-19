@@ -1,5 +1,6 @@
 package com.example.de_general.feature.chat.ui
 
+import com.example.de_general.core.ai.EngineState
 import com.example.de_general.feature.chat.domain.ChatMessage
 import com.example.de_general.feature.chat.domain.ChatRole
 import kotlin.test.Test
@@ -59,14 +60,43 @@ class ChatUiStateTest {
         assertEquals("Context: 3 recent entries", ChatUiState(contextEntryCount = 3).contextLabel)
     }
 
+    /** Nothing generates until the engine says it is ready — not while it is still loading. */
+    @Test
+    fun onlyAReadyEngineCanGenerate() {
+        assertFalse(ChatUiState(engine = EngineState.Idle).canGenerate)
+        assertFalse(ChatUiState(engine = EngineState.Loading).canGenerate)
+        assertFalse(ChatUiState(engine = EngineState.Failed("boom")).canGenerate)
+        assertTrue(ChatUiState(engine = EngineState.Ready(loadMillis = 1_200)).canGenerate)
+    }
+
     /**
-     * The engine really is absent, and the default says so.
+     * The chip reports the engine's own state, and the load time is the measured one.
      *
-     * If this ever starts defaulting to `true`, the screen would stop telling the user why no
-     * reply arrives.
+     * `docs/LOCAL_AI.md` struck an invented speed from the design; the rule is that a number on
+     * screen came from a measurement. This pins that the label carries the engine's figure rather
+     * than one composed here.
      */
     @Test
-    fun thereIsNoEngineUnlessOneIsSupplied() {
-        assertFalse(ChatUiState().engineAvailable)
+    fun theEngineLabelReportsWhatTheEngineSaid() {
+        assertEquals("not loaded", ChatUiState(engine = EngineState.Idle).engineLabel)
+        assertEquals("loading…", ChatUiState(engine = EngineState.Loading).engineLabel)
+        assertEquals(
+            "ready in 1234 ms",
+            ChatUiState(engine = EngineState.Ready(loadMillis = 1234)).engineLabel,
+        )
+        assertEquals("unavailable", ChatUiState(engine = EngineState.Failed("x")).engineLabel)
+    }
+
+    /**
+     * A reply being streamed is not an empty conversation.
+     *
+     * Without this the empty state would flash over the first answer as it arrives, because the
+     * first token lands before any row is written.
+     */
+    @Test
+    fun aStreamingReplyMeansTheScreenIsNotEmpty() {
+        val state = ChatUiState(loading = false, messages = emptyList(), streamingReply = "It ta")
+
+        assertFalse(state.isEmpty)
     }
 }

@@ -29,6 +29,13 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = "1.0"
+
+        ndk {
+            // llama.cpp ships four ABIs; two of them are 32-bit, and Compatibility.kt already
+            // refuses to install on anything but a 64-bit CPU. Dropping them halves what the
+            // native libraries add to the APK. x86_64 stays so the emulator works.
+            abiFilters += listOf("arm64-v8a", "x86_64")
+        }
     }
     packaging {
         resources {

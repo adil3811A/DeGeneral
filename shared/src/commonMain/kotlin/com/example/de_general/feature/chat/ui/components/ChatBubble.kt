@@ -46,7 +46,8 @@ private val BubbleVerticalPadding: Dp = 12.dp
  * number invented here.
  *
  * [onReflectDeeper] and [onSaveInsight] hang under companion turns only. They are real: one sends
- * a follow-up, the other writes the text into the journal.
+ * a follow-up, the other writes the text into the journal. [showActions] turns them off for a
+ * reply still being written — there is nothing to act on until it is finished.
  */
 @Composable
 fun ChatBubble(
@@ -54,10 +55,11 @@ fun ChatBubble(
     onReflectDeeper: () -> Unit,
     onSaveInsight: () -> Unit,
     modifier: Modifier = Modifier,
+    showActions: Boolean = true,
 ) {
     when (message.chatRole) {
         ChatRole.User -> UserTurn(message, modifier)
-        ChatRole.Model -> ModelTurn(message, onReflectDeeper, onSaveInsight, modifier)
+        ChatRole.Model -> ModelTurn(message, onReflectDeeper, onSaveInsight, showActions, modifier)
     }
 }
 
@@ -90,6 +92,7 @@ private fun ModelTurn(
     message: ChatMessage,
     onReflectDeeper: () -> Unit,
     onSaveInsight: () -> Unit,
+    showActions: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val spacing = MindfulTheme.spacing
@@ -116,11 +119,36 @@ private fun ModelTurn(
             )
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
-            ActionChip(MindfulIcons.Psychology, "Reflect deeper", onReflectDeeper)
-            ActionChip(MindfulIcons.AutoStories, "Save insight", onSaveInsight)
+        if (showActions) {
+            Row(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
+                ActionChip(MindfulIcons.Psychology, "Reflect deeper", onReflectDeeper)
+                ActionChip(MindfulIcons.AutoStories, "Save insight", onSaveInsight)
+            }
+        }
+
+        message.speedLabel()?.let { label ->
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.outline,
+            )
         }
     }
+}
+
+/**
+ * The measured generation speed, or null when there is nothing measured to show.
+ *
+ * `docs/LOCAL_AI.md` struck an estimated "24 tok/s" from the design and said to bring a speed back
+ * only once one had actually been timed. This is that figure: counted across the real generation,
+ * stored on the row, and absent — not guessed — on every reply written before the app could time
+ * one.
+ */
+private fun ChatMessage.speedLabel(): String? {
+    val rate = tokensPerSecond ?: return null
+    val whole = rate.toInt()
+    val tenths = ((rate - whole) * 10).toInt()
+    return "$whole.$tenths tokens/sec"
 }
 
 /** The avatar, the name, and the one-word reminder of where the answer came from. */

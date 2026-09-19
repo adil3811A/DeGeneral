@@ -45,13 +45,29 @@ class ChatRepository(
     suspend fun messages(): List<ChatMessage> = dao.getAll()
 
     /** Records what the person said, stamped now. Returns the id assigned to the new row. */
-    suspend fun sendUserMessage(text: String): Long = write(ChatRole.User, text)
+    suspend fun sendUserMessage(text: String): Long = dao.insert(
+        ChatMessage(role = ChatRole.User.column, text = text.trim(), timestamp = now()),
+    )
 
-    /** Records what the model produced. Nothing calls this until `LlmEngine` has an implementation. */
-    suspend fun recordModelMessage(text: String): Long = write(ChatRole.Model, text)
-
-    private suspend fun write(role: ChatRole, text: String): Long = dao.insert(
-        ChatMessage(role = role.column, text = text.trim(), timestamp = now()),
+    /**
+     * Records what the model produced, with what it cost.
+     *
+     * [tokensPerSecond] and [generationMillis] are measured by the caller across the actual
+     * generation; they are nullable so that a reply which finished without a usable timing
+     * stores nothing rather than a made-up number.
+     */
+    suspend fun recordModelMessage(
+        text: String,
+        tokensPerSecond: Double? = null,
+        generationMillis: Long? = null,
+    ): Long = dao.insert(
+        ChatMessage(
+            role = ChatRole.Model.column,
+            text = text.trim(),
+            timestamp = now(),
+            tokensPerSecond = tokensPerSecond,
+            generationMillis = generationMillis,
+        ),
     )
 
     /**

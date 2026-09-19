@@ -3,8 +3,12 @@ package com.example.de_general.navigation
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.exclude
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -92,7 +96,12 @@ private fun MainNavBarContent(
             },
         ),
         modifier = Modifier
-            .safeDrawingPadding()
+            // safeDrawing *minus* the keyboard, and the exclusion is the whole point.
+            // `safeDrawing.bottom` is `maxOf(displayCutout, ime, systemBars)`, so a plain
+            // `safeDrawingPadding()` here lifted the whole bar up with the keyboard — the tabs
+            // would ride above the composer every time someone started typing. The bar belongs to
+            // the window, not to the text field: it stays put and lets the keyboard cover it.
+            .windowInsetsPadding(WindowInsets.safeDrawing.exclude(WindowInsets.ime))
             .padding(
                 horizontal = spacing.margin,
                 vertical = FloatingNavBarDefaults.ScreenOffset,

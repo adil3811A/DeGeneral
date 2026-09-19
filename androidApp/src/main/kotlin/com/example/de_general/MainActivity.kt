@@ -6,10 +6,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.example.de_general.core.data.DatabaseFactory
-import com.example.de_general.di.AppContainer
-import com.example.de_general.feature.onboarding.domain.DeviceProbe
-import com.example.de_general.feature.onboarding.domain.ModelStorage
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -22,13 +18,9 @@ class MainActivity : ComponentActivity() {
         )
         super.onCreate(savedInstanceState)
 
-        // Application context, not the activity: the container outlives configuration changes.
-        val container = AppContainer(
-            deviceProbe = DeviceProbe(applicationContext),
-            modelStorage = ModelStorage(applicationContext),
-            databaseFactory = DatabaseFactory(applicationContext),
-            now = System::currentTimeMillis,
-        )
+        // Read, never built here. The container owns the inference engine, so one per process
+        // and not one per activity — see DeGeneralApplication.
+        val container = (application as DeGeneralApplication).container
 
         setContent {
             App(container)

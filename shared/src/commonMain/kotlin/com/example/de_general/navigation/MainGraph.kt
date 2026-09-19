@@ -1,6 +1,7 @@
 package com.example.de_general.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -30,6 +31,17 @@ fun NavGraphBuilder.mainGraph(navController: NavController, container: AppContai
         composable<Chat> { backStackEntry ->
             val viewModel = chatViewModel(backStackEntry, navController, container)
             val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+            // The weights are ~770 MB, so they are only resident while this tab is on screen.
+            // Both calls go through the view model rather than a scope remembered here: this
+            // composable's scope is cancelled the instant it leaves, which would abandon the
+            // unload half-done. The view model is scoped to the whole main graph and is still
+            // alive afterwards, so it is the thing that can finish the job.
+            DisposableEffect(viewModel) {
+                viewModel.loadEngine()
+                onDispose { viewModel.unloadEngine() }
+            }
+
             ChatScreen(
                 state = state,
                 onDraftChange = viewModel::onDraftChange,
@@ -101,6 +113,7 @@ private fun chatViewModel(
         ChatViewModel(
             repository = container.chatRepository,
             engine = container.llmEngine,
+            modelPath = container.modelInstaller.modelPath,
             modelLabel = "${GemmaThreeOneB.displayName} · ${GemmaThreeOneB.quantization}",
         )
     }

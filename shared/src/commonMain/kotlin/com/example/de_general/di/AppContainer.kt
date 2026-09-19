@@ -1,5 +1,6 @@
 package com.example.de_general.di
 
+import com.example.de_general.core.ai.LlamatikEngine
 import com.example.de_general.core.ai.LlmEngine
 import com.example.de_general.core.data.DatabaseFactory
 import com.example.de_general.core.data.DeGeneralDatabase
@@ -60,15 +61,14 @@ class AppContainer(
     }
 
     /**
-     * The local model, once something can run it.
+     * The local model.
      *
-     * **Null on every build today, and that is the honest value.** `LlmEngine` has no
-     * implementation — running the weights needs llama.cpp through the NDK on Android and an
-     * XCFramework on iOS, neither of which exists. See `docs/LOCAL_AI.md`.
+     * One instance for the whole process, which is why this container has to be
+     * application-scoped and not rebuilt in `Activity.onCreate` — a second copy would start
+     * loading another ~770 MB of weights on every rotation.
      *
-     * Null rather than a stub that returns canned text: a chat screen holding a null engine can
-     * tell the user plainly that generation is not wired up, whereas a stub would have to invent
-     * something, and inventing is exactly what this app does not do.
+     * Constructed eagerly but **loads nothing**: [LlamatikEngine] starts at `EngineState.Idle` and
+     * only touches the weights when the Chat screen asks it to.
      */
-    val llmEngine: LlmEngine? = null
+    val llmEngine: LlmEngine = LlamatikEngine()
 }

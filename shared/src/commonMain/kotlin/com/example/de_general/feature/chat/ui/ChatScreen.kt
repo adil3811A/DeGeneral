@@ -5,12 +5,16 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.exclude
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
@@ -30,6 +34,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.example.de_general.core.ai.EngineState
 import com.example.de_general.core.ui.components.Badge
 import com.example.de_general.core.ui.components.FloatingNavBarDefaults
 import com.example.de_general.core.ui.icons.Lock
@@ -47,6 +52,13 @@ import com.example.de_general.feature.chat.ui.components.ChatComposer
 private val ComposerReserve: Dp = 64.dp
 
 private val ChipIconSize: Dp = 14.dp
+
+/**
+ * Key for the in-progress reply.
+ *
+ * Negative so it can never collide with a Room row id, which autoincrements from 1.
+ */
+private const val STREAMING_KEY = -1L
 
 /**
  * The Companion Chat.
@@ -74,18 +86,33 @@ fun ChatScreen(
     val spacing = MindfulTheme.spacing
     val listState = rememberLazyListState()
 
-    // A new turn should be on screen without the reader chasing it.
-    LaunchedEffect(state.messages.size) {
-        if (state.messages.isNotEmpty()) listState.animateScrollToItem(state.messages.lastIndex)
+    // The composer has to clear the floating nav bar when the keyboard is down, and the keyboard
+    // when it is up. These two are deliberately expressed as one continuous pair rather than an
+    // "is the keyboard open" boolean: as the keyboard animates in, its inset grows by exactly as
+    // much as the nav-bar reserve shrinks, so their sum never dips and the composer never jumps
+    // or leaves a gap at any point in the animation. A boolean flips at one arbitrary frame and
+    // is what produced the dead space below the composer.
+    val imeBottom = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+    val navBarReserve = (FloatingNavBarDefaults.ContentInset - imeBottom).coerceAtLeast(0.dp)
+    val transcriptReserve =
+        maxOf(imeBottom, FloatingNavBarDefaults.ContentInset) + ComposerReserve
+
+    // Follow both new turns and the reply being written, so the reader never chases it.
+    val transcriptLength = state.messages.size to state.streamingReply?.length
+    LaunchedEffect(transcriptLength) {
+        val last = state.messages.size - if (state.streamingReply == null) 1 else 0
+        if (last >= 0) listState.animateScrollToItem(last)
     }
 
     Surface(modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
         Box(
-            Modifier
-                // safeDrawing, not safeContent: the latter unions in systemGestures and silently
-                // doubles the horizontal inset on gesture-navigation phones.
-                .safeDrawingPadding()
-                .imePadding(),
+            // safeDrawing, not safeContent: the latter unions in systemGestures and silently
+            // doubles the horizontal inset on gesture-navigation phones.
+            //
+            // The keyboard is excluded here and handled once, below, on the composer. Left in,
+            // it would inset this whole Box *and* the composer's own reserve — the screen would
+            // lift by roughly two keyboards and leave dead space above the real one.
+            Modifier.windowInsetsPadding(WindowInsets.safeDrawing.exclude(WindowInsets.ime)),
         ) {
             Column(
                 modifier = Modifier.fillMaxSize(),
@@ -95,19 +122,30 @@ fun ChatScreen(
                 StatusRow(state)
 
                 Box(Modifier.weight(1f)) {
-                    Transcript(state, listState, onReflectDeeper, onSaveInsight)
+                    Transcript(
+                        state,
+                        listState,
+                        transcriptReserve,
+                        onReflectDeeper,
+                        onSaveInsight,
+                    )
                 }
             }
 
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
+                    // The keyboard, as an inset — so Compose subtracts what the Box above already
+                    // consumed and the composer lands exactly on top of it, not a system bar's
+                    // height above.
+                    .windowInsetsPadding(WindowInsets.ime)
+                    // The floating nav bar, as plain padding — a fixed gap that belongs to this
+                    // app's own chrome, not to the window, and must not be consumption-adjusted.
+                    .padding(bottom = navBarReserve)
                     .padding(
                         horizontal = spacing.margin,
                         vertical = FloatingNavBarDefaults.ScreenOffset,
-                    )
-                    // Sit above the floating nav bar rather than under it.
-                    .padding(bottom = FloatingNavBarDefaults.ContentInset),
+                    ),
                 verticalArrangement = Arrangement.spacedBy(spacing.sm),
             ) {
                 state.notice?.let { Notice(it, onDismissNotice) }
@@ -163,7 +201,7 @@ private fun StatusRow(state: ChatUiState) {
     ) {
         StatusChip(
             icon = MindfulIcons.Memory,
-            label = state.modelLabel,
+            label = "${state.modelLabel} · ${state.engineLabel}",
             container = MaterialTheme.colorScheme.primaryFixed,
             content = MaterialTheme.colorScheme.onPrimaryFixed,
         )
@@ -201,6 +239,7 @@ private fun StatusChip(
 private fun Transcript(
     state: ChatUiState,
     listState: LazyListState,
+    bottomReserve: Dp,
     onReflectDeeper: () -> Unit,
     onSaveInsight: (ChatMessage) -> Unit,
 ) {
@@ -228,8 +267,8 @@ private fun Transcript(
                 start = spacing.margin,
                 end = spacing.margin,
                 top = spacing.sm,
-                // Clear the composer and the floating nav bar below it.
-                bottom = FloatingNavBarDefaults.ContentInset + ComposerReserve,
+                // Clear the composer and whatever the composer is sitting on.
+                bottom = bottomReserve,
             ),
             verticalArrangement = Arrangement.spacedBy(spacing.md),
         ) {
@@ -239,6 +278,24 @@ private fun Transcript(
                     onReflectDeeper = onReflectDeeper,
                     onSaveInsight = { onSaveInsight(message) },
                 )
+            }
+
+            // The answer being written. Not a row yet, and it carries no speed figure — nothing
+            // has been measured until it finishes.
+            state.streamingReply?.let { partial ->
+                item(key = STREAMING_KEY) {
+                    ChatBubble(
+                        message = ChatMessage(
+                            id = STREAMING_KEY,
+                            role = ChatRole.Model.column,
+                            text = partial,
+                            timestamp = 0L,
+                        ),
+                        onReflectDeeper = {},
+                        onSaveInsight = {},
+                        showActions = false,
+                    )
+                }
             }
         }
     }
@@ -278,10 +335,11 @@ private fun Notice(text: String, onDismiss: () -> Unit) {
 }
 
 /**
- * A scripted conversation, so the design can be reviewed.
+ * A scripted conversation, so the design can be reviewed without loading 770 MB of weights.
  *
- * These two turns are a **fixture**. The running app cannot produce the companion's reply — there
- * is no inference engine — and it does not pretend otherwise.
+ * These two turns are a **fixture**, including the speed figure on the reply. In the running app
+ * that number is measured across the real generation; here it is made up, which is fine in a
+ * preview and would not be anywhere else.
  */
 @Preview
 @Composable
@@ -291,6 +349,7 @@ private fun ChatScreenPreview() {
             state = ChatUiState(
                 loading = false,
                 modelLabel = "Gemma 3 1B · Q4_K_M",
+                engine = EngineState.Ready(loadMillis = 1840),
                 contextEntryCount = 3,
                 messages = listOf(
                     ChatMessage(
@@ -307,6 +366,8 @@ private fun ChatScreenPreview() {
                             "about one non-negotiable pause — five minutes before you open " +
                             "anything?",
                         timestamp = 1L,
+                        tokensPerSecond = 7.4,
+                        generationMillis = 9_200,
                     ),
                 ),
             ),

@@ -79,6 +79,10 @@ kotlin {
             implementation(libs.okio)
             implementation(libs.navigation.compose)
             implementation(libs.kotlinx.serialization.core)
+            // llama.cpp, prebuilt for every target this module has. Common rather than
+            // androidMain: LlamaBridge is an `expect object` with actuals for android,
+            // iosArm64 and iosSimulatorArm64, so the engine needs no expect/actual of ours.
+            implementation(libs.llamatik)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

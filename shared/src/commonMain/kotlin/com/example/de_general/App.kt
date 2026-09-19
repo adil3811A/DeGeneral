@@ -1,8 +1,9 @@
 package com.example.de_general
 
 import androidx.compose.runtime.Composable
+import com.example.de_general.core.ui.theme.MindfulScribeTheme
+import com.example.de_general.di.AppContainer
 import com.example.de_general.navigation.AppNavHost
-import com.example.de_general.ui.theme.MindfulScribeTheme
 
 /**
  * The app: the theme, and a navigation host inside it.

@@ -1,8 +1,8 @@
 package com.example.de_general.navigation
 
-import com.example.de_general.ai.DownloadProgress
-import com.example.de_general.ai.InstallFailure
-import com.example.de_general.ai.InstallState
+import com.example.de_general.feature.onboarding.domain.DownloadProgress
+import com.example.de_general.feature.onboarding.domain.InstallFailure
+import com.example.de_general.feature.onboarding.domain.InstallState
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

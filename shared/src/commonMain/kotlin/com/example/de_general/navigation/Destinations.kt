@@ -1,6 +1,6 @@
 package com.example.de_general.navigation
 
-import com.example.de_general.ai.InstallState
+import com.example.de_general.feature.onboarding.domain.InstallState
 import kotlinx.serialization.Serializable
 
 /**
@@ -46,5 +46,5 @@ internal fun startGraph(install: InstallState): Any =
  * A half-finished download should land on the screen with the resume button rather than making the
  * user walk through the device check again.
  */
-    internal fun onboardingStart(install: InstallState): Any =
+internal fun onboardingStart(install: InstallState): Any =
     if (install is InstallState.Paused) Install else Welcome

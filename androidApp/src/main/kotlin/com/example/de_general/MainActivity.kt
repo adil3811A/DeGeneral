@@ -6,8 +6,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.example.de_general.ai.DeviceProbe
-import com.example.de_general.ai.ModelStorage
+import com.example.de_general.core.data.DatabaseFactory
+import com.example.de_general.di.AppContainer
+import com.example.de_general.feature.onboarding.domain.DeviceProbe
+import com.example.de_general.feature.onboarding.domain.ModelStorage
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -24,6 +26,8 @@ class MainActivity : ComponentActivity() {
         val container = AppContainer(
             deviceProbe = DeviceProbe(applicationContext),
             modelStorage = ModelStorage(applicationContext),
+            databaseFactory = DatabaseFactory(applicationContext),
+            now = System::currentTimeMillis,
         )
 
         setContent {

@@ -1,6 +1,7 @@
 package com.example.de_general.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -9,11 +10,10 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
-import androidx.compose.runtime.getValue
-import com.example.de_general.AppContainer
-import com.example.de_general.ui.onboarding.InstallScreen
-import com.example.de_general.ui.onboarding.OnboardingViewModel
-import com.example.de_general.ui.onboarding.WelcomeScreen
+import com.example.de_general.di.AppContainer
+import com.example.de_general.feature.onboarding.ui.InstallScreen
+import com.example.de_general.feature.onboarding.ui.OnboardingViewModel
+import com.example.de_general.feature.onboarding.ui.WelcomeScreen
 
 /**
  * The setup flow: device check, then model install.

@@ -35,6 +35,27 @@ reads as his work.
 
 ## The house rules
 
+### Layout
+Feature-first. `core/` holds what every feature uses; `feature/<name>/` holds one feature's
+`domain`, `data` and `ui` together; `navigation/` and `di/` sit beside them.
+
+```
+core/{data, ui/theme, ui/components, ui/icons}
+feature/onboarding/{domain, ui, ui/components}
+feature/journal/{domain, data, ui}
+navigation/   di/
+```
+
+Two rules keep it honest, and they are the whole point of the layout:
+
+- **`core` never imports `feature`.** One documented exception: `core/data/DeGeneralDatabase.kt`,
+  because a Room `@Database` has to name every feature's entities. That exception does not
+  generalise to anything else in `core`.
+- **A feature never imports another feature.** If two need the same thing, it moves to `core`.
+
+A component that pattern-matches on a feature's domain type belongs to that feature, not to `core`
+— `DiagnosticRow` lives under `feature/onboarding/ui/components/` for exactly that reason.
+
 ### Theme
 Read `docs/THEME.md` before touching anything visual. Short version:
 
@@ -44,8 +65,8 @@ Read `docs/THEME.md` before touching anything visual. Short version:
 - Cards use `spacing.cardPadding`; buttons and chips are pills (`MindfulShapes.full`).
 - Use `safeDrawingPadding()`, never `safeContentPadding()` — the latter unions in `systemGestures`
   and silently adds ~40dp per side on gesture-navigation phones.
-- The theme is ported from a Stitch design system. Stitch is upstream; `ui/theme/` is downstream.
-  Fix colours in Stitch and re-port, don't hand-edit `Color.kt`.
+- The theme is ported from a Stitch design system. Stitch is upstream; `core/ui/theme/` is
+  downstream. Fix colours in Stitch and re-port, don't hand-edit `Color.kt`.
   `python3 tools/check_theme_tokens.py` guards the palette against drift.
 
 ### Local AI
@@ -83,5 +104,5 @@ This app makes privacy and hardware claims to the user, so the bar is higher tha
 - No AVD on this machine by default, and no Mac — so UI changes cannot be visually verified here.
   Hand them to Adil to run rather than implying they were checked.
 - `material-icons-extended` stopped at Compose 1.7.3 and this project is on 1.12. Icons are
-  hand-built from Material Symbols path data in `ui/icons/MindfulIcons.kt`. Split those path
+  hand-built from Material Symbols path data in `core/ui/icons/MindfulIcons.kt`. Split those path
   strings at fixed columns, never on whitespace — the spaces are significant to the path grammar.

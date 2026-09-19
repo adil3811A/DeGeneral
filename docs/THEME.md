@@ -1,6 +1,6 @@
 # The Mindful Scribe theme
 
-This is the guide to `shared/src/commonMain/kotlin/com/example/de_general/ui/theme/`. Read it
+This is the guide to `shared/src/commonMain/kotlin/com/example/de_general/core/ui/theme/`. Read it
 before you build a screen, change a colour, or touch a font.
 
 ## Where the theme comes from
@@ -35,7 +35,7 @@ the elevation tiers and the component anatomy.
 ```
 shared/src/commonMain/
 ├── composeResources/font/          4 variable fonts + their OFL licenses
-└── kotlin/com/example/de_general/ui/theme/
+└── kotlin/com/example/de_general/core/ui/theme/
     ├── Color.kt          47 colour tokens → MindfulScribeLightColors
     ├── Type.kt           11 type slots → Material's 15
     ├── Shape.kt          roundness scale + the pill shape

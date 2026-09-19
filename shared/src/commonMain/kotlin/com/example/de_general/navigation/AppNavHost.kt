@@ -14,7 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
-import com.example.de_general.AppContainer
+import com.example.de_general.di.AppContainer
 
 /** How far a screen travels while sliding in or out. A full-width slide is too brisk for this app. */
 private const val SLIDE_FRACTION = 6
@@ -49,7 +49,7 @@ fun AppNavHost(container: AppContainer, modifier: Modifier = Modifier) {
         popExitTransition = { slideOut(forward = false) },
     ) {
         onboardingGraph(navController, container, onboardingStart)
-        mainGraph()
+        mainGraph(navController, container)
     }
 }
 

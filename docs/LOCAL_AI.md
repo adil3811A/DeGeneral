@@ -2,8 +2,11 @@
 
 How the model gets onto the device, and what the onboarding screens promise about it.
 
-Code lives in `shared/src/commonMain/kotlin/com/example/de_general/ai/` (engine) and
-`.../ui/onboarding/` (the two screens).
+Code lives in `shared/src/commonMain/kotlin/com/example/de_general/feature/onboarding/domain/`
+(engine) and `.../feature/onboarding/ui/` (the two screens). The strings and figures those
+screens show are derived in `InstallCopy.kt` and `WelcomeCopy.kt` beside them — pure functions
+with no Compose import, so every milestone label and progress line is covered by `commonTest`
+rather than only by looking at the screen.
 
 ## The model
 

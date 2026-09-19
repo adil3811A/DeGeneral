@@ -74,7 +74,7 @@ STITCH_NAMED_COLORS = {
 
 COLOR_KT = (
     Path(__file__).resolve().parent.parent
-    / "shared/src/commonMain/kotlin/com/example/de_general/ui/theme/Color.kt"
+    / "shared/src/commonMain/kotlin/com/example/de_general/core/ui/theme/Color.kt"
 )
 
 # Color.kt names the error role ErrorColor so it does not clash with the Color type.

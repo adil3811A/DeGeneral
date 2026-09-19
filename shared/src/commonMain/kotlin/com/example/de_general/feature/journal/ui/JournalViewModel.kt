@@ -18,6 +18,14 @@ data class JournalUiState(
     val draft: String = "",
     val saving: Boolean = false,
     val errorMessage: String? = null,
+    /**
+     * How many times something has asked the editor to take focus.
+     *
+     * A counter rather than a flag: the bottom bar's pencil button can be pressed twice in a
+     * row, and a `Boolean` that is already `true` would swallow the second press. The screen
+     * watches the number change; the value itself means nothing.
+     */
+    val composeRequest: Int = 0,
 ) {
     val canSave: Boolean get() = draft.isNotBlank() && !saving
 
@@ -28,6 +36,9 @@ data class JournalUiState(
      * state never flashes at someone who has fifty entries.
      */
     val isEmpty: Boolean get() = !loading && entries.isEmpty()
+
+    /** See [composeRequest]. A pure step, so `commonTest` can pin it without a view model. */
+    fun requestingCompose(): JournalUiState = copy(composeRequest = composeRequest + 1)
 }
 
 /**
@@ -57,6 +68,17 @@ class JournalViewModel(
 
     fun onDraftChange(text: String) {
         _uiState.update { it.copy(draft = text) }
+    }
+
+    /**
+     * Ask the editor for focus — what the bottom bar's pencil button does.
+     *
+     * The request goes through state rather than an event channel because the button and the
+     * editor are not in the same composition: the bar lives beside the `NavHost`, the editor
+     * inside it. Both reach this view model through the main graph's back stack entry.
+     */
+    fun requestCompose() {
+        _uiState.update { it.requestingCompose() }
     }
 
     /**

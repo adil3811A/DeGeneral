@@ -24,12 +24,20 @@ data object Welcome
 @Serializable
 data object Install
 
-/** Everything after onboarding. Bottom navigation will hang off this. */
+/** Everything after onboarding. The bottom bar switches between this graph's children. */
 @Serializable
 data object MainGraph
 
+/** The on-device companion. Not built yet — see `feature/chat/ui/ChatScreen.kt`. */
+@Serializable
+data object Chat
+
 @Serializable
 data object Journal
+
+/** Not built yet — see `feature/settings/ui/SettingsScreen.kt`. */
+@Serializable
+data object Settings
 
 /**
  * Which graph the app opens on.

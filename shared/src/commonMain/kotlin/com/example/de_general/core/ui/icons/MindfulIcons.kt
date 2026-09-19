@@ -10,10 +10,10 @@ import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 
 /**
- * The icons these two screens need, built from Material Symbols Outlined path data.
+ * The icons these screens need, built from Material Symbols Outlined path data.
  *
  * Carried here rather than pulled from a library on purpose: `material-icons-extended` stopped at
- * Compose 1.7.3 and this project is on 1.12, and material3 brings in no icons of its own. Twenty
+ * Compose 1.7.3 and this project is on 1.12, and material3 brings in no icons of its own. Two dozen
  * glyphs is a smaller thing to own than an unmaintained dependency or a multi-megabyte icon font.
  *
  * Path data is verbatim from google/material-design-icons (Apache 2.0). The string literals are
@@ -241,4 +241,47 @@ val MindfulIcons.Check: ImageVector
         name = "check",
         pathData =
             "M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z",
+    )
+
+val MindfulIcons.ChatBubble: ImageVector
+    get() = symbol(
+        name = "chat_bubble",
+        pathData =
+            "M80-80v-720q0-33 23.5-56.5T160-880h640q33 0 56.5 23.5T880-800v480q0 33-23.5 56.5T800" +
+            "-240H240L80-80Zm126-240h594v-480H160v525l46-45Zm-46 0v-480 480Z",
+    )
+
+val MindfulIcons.AutoStories: ImageVector
+    get() = symbol(
+        name = "auto_stories",
+        pathData =
+            "M480-160q-48-38-104-59t-116-21q-42 0-82.5 11T100-198q-21 11-40.5-1T40-234v-482q0-11 " +
+            "5.5-21T62-752q46-24 96-36t102-12q58 0 113.5 15T480-740v484q51-32 107-48t113-16q36 0 " +
+            "70.5 6t69.5 18v-480q15 5 29.5 10.5T898-752q11 5 16.5 15t5.5 21v482q0 23-19.5 35t-40." +
+            "5 1q-37-20-77.5-31T700-240q-60 0-116 21t-104 59Zm80-200v-380l200-200v400L560-360Zm-1" +
+            "60 65v-396q-33-14-68.5-21.5T260-720q-37 0-72 7t-68 21v397q35-13 69.5-19t70.5-6q36 0 " +
+            "70.5 6t69.5 19Zm0 0v-396 396Z",
+    )
+
+val MindfulIcons.Settings: ImageVector
+    get() = symbol(
+        name = "settings",
+        pathData =
+            "m370-80-16-128q-13-5-24.5-12T307-235l-119 50L78-375l103-78q-1-7-1-13.5v-27q0-6.5 1-1" +
+            "3.5L78-585l110-190 119 50q11-8 23-15t24-12l16-128h220l16 128q13 5 24.5 12t22.5 15l11" +
+            "9-50 110 190-103 78q1 7 1 13.5v27q0 6.5-2 13.5l103 78-110 190-118-50q-11 8-23 15t-24" +
+            " 12L590-80H370Zm70-80h79l14-106q31-8 57.5-23.5T639-327l99 41 39-68-86-65q5-14 7-29.5" +
+            "t2-31.5q0-16-2-31.5t-7-29.5l86-65-39-68-99 42q-22-23-48.5-38.5T533-694l-13-106h-79l-" +
+            "14 106q-31 8-57.5 23.5T321-633l-99-41-39 68 86 64q-5 15-7 30t-2 32q0 16 2 31t7 30l-8" +
+            "6 65 39 68 99-42q22 23 48.5 38.5T427-266l13 106Zm42-180q58 0 99-41t41-99q0-58-41-99t" +
+            "-99-41q-59 0-99.5 41T342-480q0 58 40.5 99t99.5 41Zm-2-140Z",
+    )
+
+val MindfulIcons.Edit: ImageVector
+    get() = symbol(
+        name = "edit",
+        pathData =
+            "M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 " +
+            "31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-" +
+            "56 56 56Zm-141 85-28-29 57 57-29-28Z",
     )

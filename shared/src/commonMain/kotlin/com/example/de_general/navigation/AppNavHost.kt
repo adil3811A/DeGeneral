@@ -8,8 +8,11 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.compose.NavHost
@@ -28,6 +31,10 @@ private const val DURATION_MS = 320
  * "current step". Where the app opens is still derived from disk, via [startGraph] and
  * [onboardingStart], both read once before composition because a graph's start destination is
  * fixed when its builder runs.
+ *
+ * [MainNavBar] is a sibling of the host, not a child of any destination. Inside the host it would
+ * be a different composable per destination and would slide and fade along with each tab switch;
+ * out here it is composed once and simply stays put. It renders nothing outside the main graph.
  */
 @Composable
 fun AppNavHost(container: AppContainer, modifier: Modifier = Modifier) {
@@ -39,17 +46,24 @@ fun AppNavHost(container: AppContainer, modifier: Modifier = Modifier) {
     val rootStart = remember(installState) { startGraph(installState) }
     val onboardingStart = remember(installState) { onboardingStart(installState) }
 
-    NavHost(
-        navController = navController,
-        startDestination = rootStart,
-        modifier = modifier,
-        enterTransition = { slideIn(forward = true) },
-        exitTransition = { slideOut(forward = true) },
-        popEnterTransition = { slideIn(forward = false) },
-        popExitTransition = { slideOut(forward = false) },
-    ) {
-        onboardingGraph(navController, container, onboardingStart)
-        mainGraph(navController, container)
+    Box(modifier.fillMaxSize()) {
+        NavHost(
+            navController = navController,
+            startDestination = rootStart,
+            enterTransition = { slideIn(forward = true) },
+            exitTransition = { slideOut(forward = true) },
+            popEnterTransition = { slideIn(forward = false) },
+            popExitTransition = { slideOut(forward = false) },
+        ) {
+            onboardingGraph(navController, container, onboardingStart)
+            mainGraph(navController, container)
+        }
+
+        MainNavBar(
+            navController = navController,
+            container = container,
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
     }
 }
 

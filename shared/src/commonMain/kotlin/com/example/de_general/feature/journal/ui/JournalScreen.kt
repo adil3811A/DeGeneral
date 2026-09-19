@@ -2,6 +2,7 @@ package com.example.de_general.feature.journal.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,11 +20,16 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.de_general.core.ui.components.FloatingNavBarDefaults
 import com.example.de_general.core.ui.components.SectionCard
 import com.example.de_general.core.ui.icons.ErrorCircle
 import com.example.de_general.core.ui.icons.MindfulIcons
@@ -50,6 +56,14 @@ fun JournalScreen(
     modifier: Modifier = Modifier,
 ) {
     val spacing = MindfulTheme.spacing
+    val editor = remember { FocusRequester() }
+
+    // The bottom bar's pencil button has no way to reach into this composition, so it bumps a
+    // counter on the shared state instead and the editor answers here. Zero is the initial value
+    // and means nobody has asked, which is why the screen does not steal focus on first open.
+    LaunchedEffect(state.composeRequest) {
+        if (state.composeRequest > 0) editor.requestFocus()
+    }
 
     Surface(modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
         Column(
@@ -66,7 +80,7 @@ fun JournalScreen(
                 OutlinedTextField(
                     value = state.draft,
                     onValueChange = onDraftChange,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().focusRequester(editor),
                     placeholder = { Text("What happened today?") },
                     minLines = 3,
                 )
@@ -117,6 +131,11 @@ fun JournalScreen(
                 )
 
                 else -> LazyColumn(
+                    // The bottom bar floats over this screen rather than reserving space, so the
+                    // last card has to be told to stop short of it.
+                    contentPadding = PaddingValues(
+                        bottom = FloatingNavBarDefaults.ContentInset,
+                    ),
                     verticalArrangement = Arrangement.spacedBy(spacing.md),
                 ) {
                     items(state.entries, key = { it.id }) { entry ->

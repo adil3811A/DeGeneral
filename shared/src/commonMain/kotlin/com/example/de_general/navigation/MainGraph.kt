@@ -11,17 +11,22 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import com.example.de_general.di.AppContainer
+import com.example.de_general.feature.chat.ui.ChatScreen
 import com.example.de_general.feature.journal.ui.JournalScreen
 import com.example.de_general.feature.journal.ui.JournalViewModel
+import com.example.de_general.feature.settings.ui.SettingsScreen
 
 /**
  * Everything after setup.
  *
- * One destination for now. Insights and Settings — and the bottom bar that switches between them —
- * are added here as siblings of [Journal] without disturbing anything above.
+ * Three flat siblings, switched between by `MainNavBar`. The bar itself is not built here: it
+ * sits beside the `NavHost` in [AppNavHost] so that a tab switch does not drag it through the
+ * host's slide-and-fade transition.
  */
 fun NavGraphBuilder.mainGraph(navController: NavController, container: AppContainer) {
     navigation<MainGraph>(startDestination = Journal) {
+        composable<Chat> { ChatScreen() }
+
         composable<Journal> { backStackEntry ->
             val viewModel = journalViewModel(backStackEntry, navController, container)
             val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -33,18 +38,21 @@ fun NavGraphBuilder.mainGraph(navController: NavController, container: AppContai
                 onDismissError = viewModel::dismissError,
             )
         }
+
+        composable<Settings> { SettingsScreen() }
     }
 }
 
 /**
  * One journal view model, scoped to the whole main graph.
  *
- * Graph-scoped rather than destination-scoped for the same reason onboarding is: the siblings that
- * land here next will share this state, and a destination-scoped view model would throw away an
- * unsaved draft every time the user looked at another tab.
+ * Graph-scoped rather than destination-scoped for the same reason onboarding is: a
+ * destination-scoped view model would throw away an unsaved draft every time the user looked at
+ * another tab. `MainNavBar` resolves the same instance through the same graph entry, which is how
+ * the pencil button reaches the editor it is asking to focus.
  */
 @Composable
-private fun journalViewModel(
+internal fun journalViewModel(
     backStackEntry: NavBackStackEntry,
     navController: NavController,
     container: AppContainer,

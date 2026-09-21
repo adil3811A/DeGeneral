@@ -137,6 +137,78 @@ The Chat screen loads on entry and unloads on exit, through `ChatViewModel.loadE
 graph and outlives the screen, whereas a scope remembered in the composable is cancelled on the way
 out and would abandon the unload half-done.
 
+### Two callers, one session
+
+The Create Journal composer is the second thing that runs the model, and that changed two rules.
+
+**`generate` now holds the mutex for the whole stream.** It used to read the `@Volatile` session and
+call `stream` outside the lock, so `unload()` could close a session mid-generation — the exact thing
+`LlamatikEngine`'s own KDoc says must never happen. Latent with one caller; reachable with two. The
+consequence is deliberate and worth knowing: an `unload` arriving during generation now **waits**,
+bounded by `MAX_TOKENS` and running off the main thread. Freeing memory a few seconds late beats
+freeing it underneath llama.cpp.
+
+**Chat owns the engine; the composer borrows it.** Navigating to the composer disposes the Chat
+destination, so Chat has already unloaded. The composer therefore loads for itself — lazily, on the
+first Refine, because most entries are never polished and a text editor should not pay seconds of
+disk I/O on open — and **never unloads**, because a composer that unloaded on exit would be the
+thing that rips the weights out from under Chat. Two costs, stated rather than hidden: Chat →
+pencil → Refine pays the load twice, and polishing once leaves ~770 MB resident until the process
+dies.
+
+One residual race remains. A Refine that loses the ordering to a transition's unload fails with the
+engine's own "The model is not loaded.", the button reads "Try refining again", and nothing is lost.
+`LlamaBridge` is a global `expect object`; the mutex closes the window this app can close, and a
+Llamatik-internal one may remain that is not visible from here.
+
+### What the polish pass does, and what it writes
+
+Two passes, one per ask. `feature/journal/domain/PolishPrompt.kt` holds both:
+
+1. **`buildPolishPrompt(body)`** — spelling, grammar and punctuation. Nothing else.
+2. **`buildTitlePrompt(correctedBody)`** — a short title, and only when the title field is empty.
+   Run over the *corrected* text, because titling clean prose is an easier job. Allowed to fail on
+   its own: a title is a nicety and losing it must not cost the correction.
+
+Two short prompts rather than one answer with two fields, because a 1B model asked for several
+fields at once produces malformed structure often enough to need a parser plus a failure path —
+the same ground this file used to refuse the chat screen's "Suggested Journal Prompt" card. The
+title is **not** sent to the polish pass: it is a label, not prose, and including it invites the
+model to fold it into the body. `PolishPromptTest` pins all of that, plus
+`normalizeSuggestedTitle`, which strips the quotes, the "Title:" prefix and the trailing full stop
+a small model adds to a one-line answer anyway.
+
+**Accepting replaces the entry.** "Keep this version" writes the corrected text into the body field
+and the suggested title into the title field. One undo puts both back, and it is offered only while
+that would be a pure reversal — editing either field withdraws it, because an undo that also
+discarded a sentence written after accepting would be a worse trap than no undo.
+
+So there is one text, and it goes in one column:
+
+| Column | Filled by |
+|---|---|
+| `raw_text` | whatever the fields hold at Save — the corrected text, if a refine was accepted |
+| `fixed_text` | nobody, for entries written in the composer. See below |
+| `feeling_color` | nobody — stays null. The person's mood lives in `journal_entries.mood` |
+| `ai_question` | nobody — the same refusal as the chat screen's prompt card |
+
+`raw_text` was documented "exactly what the user wrote, untouched". **That is no longer true**, and
+the KDoc on `JournalEntry` says so. The tradeoff was taken deliberately: replacing the text in the
+editor is what a grammar button is expected to do, and the cost is that the pre-refine draft is not
+kept once Save is pressed. If it is ever wanted, that is one more nullable column and a schema 5 —
+not a change to this flow.
+
+`saveAiResult` and `getUnprocessed()` are untouched by this and stay for a batch pass over existing
+entries, which is the only thing `fixed_text` is now for.
+
+### The truncation limit
+
+`MAX_TOKENS = 512` and `LlmEngine.generate` has no per-call cap, so a long entry's corrected version
+**will** stop at the cap with nothing marking that it did. The screen says so in plain words —
+*"The model stops after a fixed length — check the end before you keep it."* — rather than guessing
+with a length heuristic. The real fix is a per-call `maxTokens` on the `core` seam, and that is its
+own piece of work.
+
 The install screen's fourth milestone ("Engine ready") is still satisfied by a verified file rather
 than a real load-and-warm-up. That is still the honest version of that milestone to build.
 
@@ -156,6 +228,35 @@ Same rule as the onboarding screens, applied to the Stitch screen "Companion Cha
 What *is* real: the offline badge, the context chip (it counts entries that exist — `0` says "no
 entries yet"), and both reply actions — "Reflect deeper" sends a genuine follow-up turn, "Save
 insight" writes a real journal entry.
+
+## What the Create Journal screen deliberately does not claim
+
+Same rule again, applied to the Stitch screen "Create Journal":
+
+| Design promised | Why it is not there |
+|---|---|
+| "On-Device Encrypted", "Offline encrypted" | The app encrypts nothing of its own. The badge reads **"Stays on this device"**. |
+| "Auto-saved 0s ago", a pulsing dot | Nothing is saved until Save is pressed. A timer counting up from a save that did not happen is the worst kind of false number. |
+| "Auto-synced" | There is no server and nothing syncs. |
+| "Current Date" tag | A lie the moment anyone backdates. The card prints the anchored date, derived. |
+| "1 min read" | Arithmetic about a reader nobody timed. **"72 words"** stays: we counted them. |
+| "Refine grammar & clarity (Local 0ms)" | A latency nothing measured. Reads **"Refine grammar & spelling"**, plus a *measured* "Refined in N ms" once it has run — timed across both passes, since both are what the person waited for. |
+| "Neural Core" | No NPU is detectable and llama.cpp runs on the CPU. Reads `Gemma 3 1B · Q4_K_M`, from `ModelSpec`. |
+| "Thought preserved" toast | No toast exists in this app, and the screen closes on save. |
+| Voice dictation | No speech-to-text anywhere in the app. |
+| Photo attachments | Not built. |
+| The AI prompt-suggestion card | Same refusal as the chat screen's: it needs structured output from a 1B model. A *title* is not an exception to that — it is a second plain-prose call, not a second field. |
+
+`CreateJournalUiStateTest` sweeps every branch of every derived label for `"encrypt"`, `"0ms"`,
+`"neural"`, `"sync"`, `"autosave"` and `"read"`. Those cases exist specifically to stop the struck
+copy being helpfully added back.
+
+A third number is now allowed on screen, on the same condition as the other two: **"Refined in N
+ms"**, timed across the real `generate` calls. Nothing shows it until something has run.
+
+The button says which of the three slow things is happening — "Loading the model…", "Refining…",
+"Naming it…" — rather than showing one spinner for all of them. Asking for a polish is an explicit
+act, so the wait gets an explicit label.
 
 ### Two numbers that are now allowed on screen
 
@@ -177,7 +278,11 @@ pins it. It is the one part of the pipeline that can be proved correct before an
 ## Chat storage
 
 `chat_messages`, added in database **version 2** with an explicit `Migration(1, 2)` in
-`core/data/Migrations.kt`, and the two measurement columns in **version 3**. `createDatabase()` has no destructive fallback on purpose: a missing
+`core/data/Migrations.kt`, and the two measurement columns in **version 3**. **Version 4** adds
+`title`, `mood` and `tags` to `journal_entries` for the composer — all nullable, because
+`ALTER TABLE ADD COLUMN` on a `NOT NULL` column needs a `DEFAULT` and any default there is a value
+the person did not choose. `mood` is its own column and never a reuse of `feeling_color`: that one
+is the model's reading and `saveAiResult` overwrites it. `createDatabase()` has no destructive fallback on purpose: a missing
 migration should fail loudly in development rather than quietly delete someone's journal, because
 entries never leave the device and there is no copy to restore from.
 

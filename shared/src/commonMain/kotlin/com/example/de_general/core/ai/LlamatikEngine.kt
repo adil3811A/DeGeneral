@@ -13,11 +13,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import kotlin.concurrent.Volatile
 import okio.Path
 import kotlin.time.TimeSource
 
@@ -35,6 +36,12 @@ import kotlin.time.TimeSource
  *  - `LlamaSession.stream` is **blocking**, so it runs on [dispatcher], never the caller's thread.
  *  - `reset`/`close` must not be called while `stream` is running, so [lock] serialises load,
  *    generate and unload against each other. One conversation, one session, one KV cache.
+ *
+ * [generate] holds [lock] for the whole stream, which is what makes that second claim true rather
+ * than aspirational: an [unload] arriving mid-generation now *waits* instead of closing the session
+ * out from under a running native call. The wait is bounded by [MAX_TOKENS] and happens on the
+ * caller's scope, off the main thread. Freeing memory a few seconds late is strictly better than
+ * freeing it underneath llama.cpp.
  */
 class LlamatikEngine(
     private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
@@ -46,8 +53,10 @@ class LlamatikEngine(
 
     private val lock = Mutex()
 
-    /** Written under [lock], read without it by [generate] — hence volatile. */
-    @Volatile
+    /**
+     * Read and written only under [lock] — by [load], [unload] and [generate] alike — so the mutex
+     * supplies the ordering a `@Volatile` used to be standing in for.
+     */
     private var session: LlamaSession? = null
 
     override suspend fun load(modelPath: Path) {
@@ -111,7 +120,19 @@ class LlamatikEngine(
         }
     }
 
-    override fun generate(prompt: String): Flow<String> = callbackFlow {
+    /**
+     * One generation at a time, and never concurrently with [load] or [unload].
+     *
+     * The lock is taken here rather than inside [streamOnce] because it has to span the *whole*
+     * stream: `LlamaSession.stream` blocks until the answer is finished, and releasing early would
+     * put us back where we started. `flow { }` is what lets a `suspend` lock acquisition wrap a
+     * cold flow — `callbackFlow`'s block cannot suspend before its first send.
+     */
+    override fun generate(prompt: String): Flow<String> = flow {
+        lock.withLock { emitAll(streamOnce(prompt)) }
+    }.flowOn(dispatcher)
+
+    private fun streamOnce(prompt: String): Flow<String> = callbackFlow {
         val open = session
         if (open == null) {
             close(IllegalStateException("The model is not loaded."))
@@ -147,8 +168,11 @@ class LlamatikEngine(
         // thread where there is no way to suspend, so it can only `trySend`. At the default
         // capacity a slow frame would drop tokens and silently corrupt the reply. An answer is
         // capped at MAX_TOKENS, so "unbounded" is bounded in practice.
+        //
+        // It stays on *this* flow rather than moving out to `generate`: `buffer` fuses into the
+        // `callbackFlow`'s own channel, and only here does it actually widen the channel that
+        // `trySend` writes into.
         .buffer(Channel.UNLIMITED)
-        .flowOn(dispatcher)
 }
 
 /**

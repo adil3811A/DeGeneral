@@ -2,6 +2,7 @@ package com.example.de_general.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -14,6 +15,8 @@ import androidx.navigation.compose.navigation
 import com.example.de_general.di.AppContainer
 import com.example.de_general.feature.chat.ui.ChatScreen
 import com.example.de_general.feature.chat.ui.ChatViewModel
+import com.example.de_general.feature.journal.ui.CreateJournalScreen
+import com.example.de_general.feature.journal.ui.CreateJournalViewModel
 import com.example.de_general.feature.journal.ui.JournalScreen
 import com.example.de_general.feature.journal.ui.JournalViewModel
 import com.example.de_general.feature.onboarding.domain.GemmaThreeOneB
@@ -22,9 +25,10 @@ import com.example.de_general.feature.settings.ui.SettingsScreen
 /**
  * Everything after setup.
  *
- * Three flat siblings, switched between by `MainNavBar`. The bar itself is not built here: it
- * sits beside the `NavHost` in [AppNavHost] so that a tab switch does not drag it through the
- * host's slide-and-fade transition.
+ * Three tabs switched between by `MainNavBar`, plus [CreateJournal] as a fourth flat sibling that
+ * is not a tab — it is pushed onto the stack, and the bar hides itself because no tab matches it.
+ * The bar itself is not built here: it sits beside the `NavHost` in [AppNavHost] so that a tab
+ * switch does not drag it through the host's slide-and-fade transition.
  */
 fun NavGraphBuilder.mainGraph(navController: NavController, container: AppContainer) {
     navigation<MainGraph>(startDestination = Journal) {
@@ -58,9 +62,53 @@ fun NavGraphBuilder.mainGraph(navController: NavController, container: AppContai
             val state by viewModel.uiState.collectAsStateWithLifecycle()
             JournalScreen(
                 state = state,
-                onDraftChange = viewModel::onDraftChange,
-                onSave = viewModel::saveDraft,
                 onDelete = viewModel::deleteEntry,
+                onDismissError = viewModel::dismissError,
+            )
+        }
+
+        composable<CreateJournal> { backStackEntry ->
+            val viewModel = createJournalViewModel(backStackEntry, navController, container)
+            val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+            // Keyed on this entry's id, not an onDispose, and the difference is data loss:
+            // `DisposableEffect`'s onDispose also fires on **rotation**. For Chat's engine that is
+            // merely wasteful; for a half-written entry it would silently throw the entry away.
+            // `remember(key)` runs this exactly once per entry, and `startComposing` is a no-op
+            // when asked for the id it already holds.
+            remember(backStackEntry.id) { viewModel.startComposing(backStackEntry.id) }
+
+            // The screen has no NavController, so it closes itself through state. acknowledgeClose
+            // clears only that flag — the draft stays put so the 320 ms exit animation renders the
+            // entry rather than a composer visibly emptying itself.
+            LaunchedEffect(state.finished) {
+                if (state.finished) {
+                    navController.popBackStack()
+                    viewModel.acknowledgeClose()
+                }
+            }
+
+            CreateJournalScreen(
+                state = state,
+                onTitleChange = viewModel::onTitleChange,
+                onBodyChange = viewModel::onBodyChange,
+                onClearBody = viewModel::clearBody,
+                onMoodChange = viewModel::onMoodChange,
+                onAnchorChange = viewModel::onAnchorChange,
+                onOpenDatePicker = viewModel::openDatePicker,
+                onDismissDatePicker = viewModel::dismissDatePicker,
+                onDatePicked = viewModel::onDatePicked,
+                onTagDraftChange = viewModel::onTagDraftChange,
+                onCommitTag = viewModel::commitTagDraft,
+                onRemoveTag = viewModel::removeTag,
+                onRefine = viewModel::refine,
+                onAcceptPolish = viewModel::acceptPolish,
+                onDiscardPolish = viewModel::discardPolish,
+                onUndoPolish = viewModel::undoPolish,
+                onSave = viewModel::save,
+                onClose = viewModel::close,
+                onCancelDiscard = viewModel::cancelDiscard,
+                onConfirmDiscard = viewModel::confirmDiscard,
                 onDismissError = viewModel::dismissError,
             )
         }
@@ -72,13 +120,11 @@ fun NavGraphBuilder.mainGraph(navController: NavController, container: AppContai
 /**
  * One journal view model, scoped to the whole main graph.
  *
- * Graph-scoped rather than destination-scoped for the same reason onboarding is: a
- * destination-scoped view model would throw away an unsaved draft every time the user looked at
- * another tab. `MainNavBar` resolves the same instance through the same graph entry, which is how
- * the pencil button reaches the editor it is asking to focus.
+ * Graph-scoped rather than destination-scoped for the same reason onboarding is: it outlives a trip
+ * to a sibling tab, so a delete in flight finishes rather than being cancelled on the way out.
  */
 @Composable
-internal fun journalViewModel(
+private fun journalViewModel(
     backStackEntry: NavBackStackEntry,
     navController: NavController,
     container: AppContainer,
@@ -89,7 +135,7 @@ internal fun journalViewModel(
         navController.getBackStackEntry<MainGraph>()
     }
     return viewModel(parentEntry) {
-        JournalViewModel(container.journalRepository)
+        JournalViewModel(container.journalRepository, container.now)
     }
 }
 
@@ -115,6 +161,41 @@ private fun chatViewModel(
             engine = container.llmEngine,
             modelPath = container.modelInstaller.modelPath,
             modelLabel = "${GemmaThreeOneB.displayName} · ${GemmaThreeOneB.quantization}",
+        )
+    }
+}
+
+/**
+ * One composer view model, scoped to the whole main graph.
+ *
+ * Graph-scoped rather than destination-scoped for the same reason `ChatViewModel` is: it has to
+ * outlive its own destination. `save()` and the polish job both run on `viewModelScope`, and a
+ * destination-scoped scope is cancelled the instant the screen pops — which is exactly when the
+ * save is still in flight.
+ *
+ * The draft is *not* kept alive by that scoping. `startComposing(backStackEntry.id)` resets it for
+ * each new push, so closing the composer and opening it again gives a blank page.
+ *
+ * The model label is derived here from the pinned spec, exactly as the chat chip's is, so it cannot
+ * drift from what `ModelSpec.kt` actually pins. `now` comes from the container so a backdated entry
+ * is stamped by the same clock the repository would have used.
+ */
+@Composable
+private fun createJournalViewModel(
+    backStackEntry: NavBackStackEntry,
+    navController: NavController,
+    container: AppContainer,
+): CreateJournalViewModel {
+    val parentEntry = remember(backStackEntry) {
+        navController.getBackStackEntry<MainGraph>()
+    }
+    return viewModel(parentEntry) {
+        CreateJournalViewModel(
+            repository = container.journalRepository,
+            engine = container.llmEngine,
+            modelPath = container.modelInstaller.modelPath,
+            modelLabel = "${GemmaThreeOneB.displayName} · ${GemmaThreeOneB.quantization}",
+            now = container.now,
         )
     }
 }

@@ -35,6 +35,17 @@ data object Chat
 @Serializable
 data object Journal
 
+/**
+ * The full-screen composer behind the pencil button.
+ *
+ * A **flat sibling** of the three tabs inside [MainGraph], not a child of [Journal], and that is
+ * load-bearing: [selectedTab] walks a destination's hierarchy, so nested under [Journal] it would
+ * find [Journal] and leave the bottom bar up over a full-screen editor. Flat, the walk finds
+ * `[CreateJournal, MainGraph]`, matches no tab, returns null, and the bar fades itself out.
+ */
+@Serializable
+data object CreateJournal
+
 /** Not built yet — see `feature/settings/ui/SettingsScreen.kt`. */
 @Serializable
 data object Settings

@@ -71,6 +71,7 @@ kotlin {
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
             implementation(libs.compose.ui)
+            implementation(libs.compose.uiBackhandler)
             implementation(libs.compose.components.resources)
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
@@ -79,6 +80,9 @@ kotlin {
             implementation(libs.okio)
             implementation(libs.navigation.compose)
             implementation(libs.kotlinx.serialization.core)
+            // Dates for the journal. Common rather than per-platform on purpose: the composer's
+            // backdating maths is pure and therefore testable on every target.
+            implementation(libs.kotlinx.datetime)
             // llama.cpp, prebuilt for every target this module has. Common rather than
             // androidMain: LlamaBridge is an `expect object` with actuals for android,
             // iosArm64 and iosSimulatorArm64, so the engine needs no expect/actual of ours.

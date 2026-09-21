@@ -35,6 +35,19 @@ class MainTabsTest {
         assertEquals(Settings, MainTab.Settings.route)
     }
 
+    /**
+     * The testable half of "the bar hides itself over the composer".
+     *
+     * [CreateJournal] is a flat sibling of the three tabs rather than a child of [Journal], so
+     * `selectedTab` finds no match, returns null and `MainNavBar` fades out. The walk itself needs
+     * a live `NavDestination` and is not tested here — what is pinned is the premise it rests on:
+     * no tab points at the composer.
+     */
+    @Test
+    fun createJournalIsNotATab() {
+        assertTrue(MainTab.entries.none { it.route == CreateJournal })
+    }
+
     @Test
     fun everyTabHasALabelToShowUnderItsIcon() {
         val labels = MainTab.entries.map { it.label }

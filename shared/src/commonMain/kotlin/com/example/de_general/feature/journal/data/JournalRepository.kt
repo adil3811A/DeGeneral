@@ -1,6 +1,8 @@
 package com.example.de_general.feature.journal.data
 
 import com.example.de_general.feature.journal.domain.JournalEntry
+import com.example.de_general.feature.journal.domain.JournalMood
+import com.example.de_general.feature.journal.domain.encodeTags
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -26,9 +28,46 @@ class JournalRepository(
 
     suspend fun entry(id: Long): JournalEntry? = dao.getById(id)
 
-    /** Writes the user's text, stamped now. Returns the id assigned to the new row. */
-    suspend fun write(rawText: String): Long =
-        dao.insert(JournalEntry(rawText = rawText.trim(), timestamp = now()))
+    /**
+     * Writes an entry. Returns the id assigned to the new row.
+     *
+     * Every parameter after [rawText] is defaulted, which is what keeps the chat screen's
+     * `saveInsight` — a bare `write(text)` — meaning exactly what it did before: an insight has no
+     * title, no mood the person picked, no tags, and it happened now.
+     *
+     * Normalisation happens here, once, rather than at each of the call sites:
+     *  - the body is trimmed;
+     *  - a blank [title] becomes null, never `""`, so "no title" has one representation;
+     *  - [tags] go through `encodeTags`, which also de-duplicates and caps them;
+     *  - [mood] is stored as the constant's name;
+     *  - a null [timestamp] means now.
+     *
+     * [timestamp] arrives as an already-resolved epoch-milli — `resolveAnchor` does the backdating
+     * arithmetic, because that needs a time zone and this class deliberately does not know what one
+     * is. [now] still stamps every entry that was not backdated.
+     *
+     * [fixedText] is here rather than only on `saveAiResult` so a correction can be attached to a
+     * row that does not exist yet. The composer does not use it — an accepted refine is applied in
+     * the editor, so [rawText] already *is* the corrected text and there is no second version to
+     * store. It stays for a batch pass that wants to write both at once.
+     */
+    suspend fun write(
+        rawText: String,
+        title: String? = null,
+        mood: JournalMood? = null,
+        tags: List<String> = emptyList(),
+        fixedText: String? = null,
+        timestamp: Long? = null,
+    ): Long = dao.insert(
+        JournalEntry(
+            rawText = rawText.trim(),
+            fixedText = fixedText?.trim()?.takeIf { it.isNotEmpty() },
+            title = title?.trim()?.takeIf { it.isNotEmpty() },
+            mood = mood?.name,
+            tags = encodeTags(tags),
+            timestamp = timestamp ?: now(),
+        ),
+    )
 
     suspend fun update(entry: JournalEntry) = dao.update(entry)
 

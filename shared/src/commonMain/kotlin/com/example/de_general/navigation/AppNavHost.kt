@@ -61,7 +61,6 @@ fun AppNavHost(container: AppContainer, modifier: Modifier = Modifier) {
 
         MainNavBar(
             navController = navController,
-            container = container,
             modifier = Modifier.align(Alignment.BottomCenter),
         )
     }

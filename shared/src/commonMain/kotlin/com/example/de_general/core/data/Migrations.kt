@@ -51,5 +51,30 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
     }
 }
 
-/** Every migration, in order. Passed to the builder in [createDatabase]. */
-val DeGeneralMigrations: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
+/**
+ * 3 → 4: the Create Journal composer.
+ *
+ * Three nullable columns on `journal_entries`, appended after `timestamp` in the same order the
+ * entity declares them — Room compares column order, so the order of these three `ALTER`s is part
+ * of the contract, not a matter of taste.
+ *
+ * `mood` is a column of its own rather than a reuse of `feeling_color`. `saveAiResult` writes
+ * `feeling_color`, so folding the two together would let a later AI pass quietly overwrite a mood
+ * the person picked by hand. `feeling_color` stays what it always was: the model's reading.
+ */
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("ALTER TABLE `journal_entries` ADD COLUMN `title` TEXT")
+        connection.execSQL("ALTER TABLE `journal_entries` ADD COLUMN `mood` TEXT")
+        connection.execSQL("ALTER TABLE `journal_entries` ADD COLUMN `tags` TEXT")
+    }
+}
+
+/**
+ * Every migration, in order. Passed to the builder in [createDatabase].
+ *
+ * Adding a migration above and forgetting to add it here is the one mistake in this file that is
+ * not a compile error: it crashes a device upgrading with real entries, and never a clean install,
+ * so no fresh run catches it.
+ */
+val DeGeneralMigrations: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)

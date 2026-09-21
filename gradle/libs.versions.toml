@@ -13,6 +13,12 @@ composeMultiplatform = "1.12.0"
 junit = "4.13.2"
 kotlin = "2.4.20"
 kotlinx-coroutines = "1.11.0"
+# 0.8.0 needs Kotlin >= 2.3.21 for the stable kotlin.time.Instant/Clock it builds on.
+# Do not reach for the "0.8.0-0.6.x-compat" artifact: it exists for callers still on the old
+# kotlinx.datetime.Instant, which this project never used.
+# On Android it resolves to the -jvm artifact and runs on java.time, which needs API 26 — the
+# level llamatik already pins android-minSdk to, so no desugaring is involved.
+kotlinx-datetime = "0.8.0"
 kotlinx-serialization = "1.11.0"
 # Llamatik bundles llama.cpp for android + iosArm64 + iosSimulatorArm64. Its AAR declares
 # minSdkVersion 26, which is what pins android-minSdk above.
@@ -41,10 +47,15 @@ compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.re
 compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "composeMultiplatform" }
 compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "material3" }
 compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "composeMultiplatform" }
+# BackHandler. Declared explicitly rather than relied on transitively: `compose.ui` lists
+# ui-backhandler on its metadata and iOS variants but not on androidApiElements, so the
+# Android compilation is the one that would not see it.
+compose-uiBackhandler = { module = "org.jetbrains.compose.ui:ui-backhandler", version.ref = "composeMultiplatform" }
 compose-components-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "composeMultiplatform" }
 compose-uiToolingPreview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "composeMultiplatform" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
 room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
 room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
 sqlite-bundled = { module = "androidx.sqlite:sqlite-bundled", version.ref = "sqlite" }

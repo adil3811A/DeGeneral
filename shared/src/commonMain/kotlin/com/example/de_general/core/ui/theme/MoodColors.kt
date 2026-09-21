@@ -38,8 +38,12 @@ data class MoodPalette(
     val reflective: MoodAccent,
     val energetic: MoodAccent,
     /**
-     * Local shield / encrypted safe. Not a mood — it marks on-device intelligence with no cloud
-     * egress, and carries the "On-Device Encrypted" badge.
+     * Local shield. Not a mood — it marks on-device intelligence with no cloud egress, and tints
+     * the privacy badge.
+     *
+     * The design system calls this the "encrypted safe" and puts "On-Device Encrypted" on that
+     * badge. The app encrypts nothing of its own, so the badge reads "Stays on this device" and
+     * this token is a colour, not a claim.
      */
     val privacyShield: Color,
 ) {

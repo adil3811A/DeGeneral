@@ -14,7 +14,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.de_general.core.ui.components.FloatingNavBar
@@ -26,7 +25,6 @@ import com.example.de_general.core.ui.icons.Edit
 import com.example.de_general.core.ui.icons.MindfulIcons
 import com.example.de_general.core.ui.icons.Settings
 import com.example.de_general.core.ui.theme.MindfulTheme
-import com.example.de_general.di.AppContainer
 
 /**
  * The bottom bar, and the only thing in the app that turns a tab into a `navigate` call.
@@ -36,17 +34,14 @@ import com.example.de_general.di.AppContainer
  * [NavController]: this is the navigation layer, where routes are allowed. Screens still never see
  * one — [com.example.de_general.core.ui.components.FloatingNavBar] is handed plain callbacks.
  *
- * Renders nothing outside the main graph, which is what keeps it off the onboarding screens.
+ * Renders nothing outside the main graph, which is what keeps it off the onboarding screens — and
+ * nothing on [CreateJournal] either, which is a sibling of the tabs rather than a child of one, so
+ * [selectedTab] matches nothing and the bar fades away under the full-screen composer.
  */
 @Composable
-internal fun MainNavBar(
-    navController: NavController,
-    container: AppContainer,
-    modifier: Modifier = Modifier,
-) {
+internal fun MainNavBar(navController: NavController, modifier: Modifier = Modifier) {
     val backStackEntry by navController.currentBackStackEntryAsState()
-    val entry = backStackEntry
-    val tab = selectedTab(entry?.destination)
+    val tab = selectedTab(backStackEntry?.destination)
 
     AnimatedVisibility(
         visible = tab != null,
@@ -54,24 +49,15 @@ internal fun MainNavBar(
         enter = fadeIn(),
         exit = fadeOut(),
     ) {
-        // Composed only while a tab is current, so the graph-scoped lookup inside cannot be asked
-        // for a MainGraph entry that is no longer on the back stack.
-        if (tab != null && entry != null) {
-            MainNavBarContent(navController, container, entry, tab)
+        if (tab != null) {
+            MainNavBarContent(navController, tab)
         }
     }
 }
 
 @Composable
-private fun MainNavBarContent(
-    navController: NavController,
-    container: AppContainer,
-    entry: NavBackStackEntry,
-    selected: MainTab,
-) {
+private fun MainNavBarContent(navController: NavController, selected: MainTab) {
     val spacing = MindfulTheme.spacing
-    // The same instance the Journal destination holds — both resolve through the MainGraph entry.
-    val journal = journalViewModel(entry, navController, container)
 
     val items = remember(selected) {
         MainTab.entries.map { tab ->
@@ -90,9 +76,13 @@ private fun MainNavBarContent(
             icon = MindfulIcons.Edit,
             label = "New entry",
             onClick = {
-                // From Chat or Settings, get to the editor before asking it to take focus.
-                if (selected != MainTab.Journal) navController.switchTab(MainTab.Journal)
-                journal.requestCompose()
+                // A push, not a switchTab: the composer is a full screen of its own, not a tab,
+                // and switchTab would pop back to the graph root with saveState.
+                //
+                // launchSingleTop is load-bearing. Two taps in quick succession must not stack two
+                // composers, because both would resolve the same graph-scoped view model and the
+                // second would reset the first one's draft.
+                navController.navigate(CreateJournal) { launchSingleTop = true }
             },
         ),
         modifier = Modifier

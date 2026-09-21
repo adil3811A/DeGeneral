@@ -28,7 +28,14 @@ class AppContainer(
     val deviceProbe: DeviceProbe,
     modelStorage: ModelStorage,
     databaseFactory: DatabaseFactory,
-    private val now: () -> Long,
+    /**
+     * The wall clock, supplied per platform.
+     *
+     * Public because the journal composer needs to stamp a backdated entry with the *same* clock
+     * the repository would have used — two clocks that agree by coincidence are two clocks that can
+     * stop agreeing.
+     */
+    val now: () -> Long,
     httpClient: HttpClient = HttpClient(),
 ) {
     val modelInstaller: ModelInstaller = ModelInstaller(httpClient, modelStorage)

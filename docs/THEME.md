@@ -79,6 +79,10 @@ Rules of thumb:
   the theme (or in Stitch) first.
 - **Never write a raw `dp` for padding.** Use `MindfulTheme.spacing`. The design system runs on an
   8pt rhythm and ad-hoc values break it quietly.
+- **Never hand-set a `lineHeight` in a screen either** — it is the typographic equivalent of a raw
+  `dp`. Stitch asks for line-height 1.8 on the Create Journal body field; `headlineSmall` is 20/28
+  and 28 is what ships. If looser leading is right for long prose it belongs in `Type.kt`, and in
+  Stitch before that. A deliberate deviation, recorded here rather than buried in a screen.
 - Cards use `spacing.cardPadding`, never a literal. That token is **16dp, not the design system's
   24dp**: the screen gutter and the card padding stack, and at the design's numbers a 360dp phone
   spent 88dp on horizontal padding before drawing anything. `spacing.margin` was tightened from
@@ -126,6 +130,25 @@ mood.glow         // the design's 4% "Mood Glow Bleed" wash
 
 `nearestTo` parses `#RRGGBB` / `#AARRGGBB` (with or without the `#`) and snaps to the closest of
 the four accents using redmean distance. Null, blank or unparseable input returns Calm.
+
+### Six moods on four accents
+
+`feature/journal/domain/JournalMood.kt` offers the design's six mood chips — Calm, Joyful,
+Reflective, Grateful, Energized, Pensive — against this palette's **four** accents. Grateful borrows
+Happy's, Pensive borrows Reflective's, so two pairs share a selected colour.
+
+That quantisation is the accepted cost of staying faithful to the design, and the palette was
+deliberately **not** extended to six. Stitch is upstream; adding two accents here would fork this
+directory away from its source, and `tools/check_theme_tokens.py` only reads `Color.kt`, so the
+drift would not even be caught. Only one chip is ever selected and the label disambiguates, so the
+shared colour costs nothing legible.
+
+If six real accents are wanted: generate them in Stitch, re-port `Color.kt` and `MoodColors.kt`,
+and `JournalMood` collapses to a one-to-one `accent: Mood`. Nothing else moves. `JournalMoodTest`
+pins the current mapping, including that exactly four accents are in use.
+
+The person's mood and `feelingColor` are **different columns**. `mood` is what they picked;
+`feelingColor` is what the model read, and `saveAiResult` overwrites it. Do not fold them together.
 
 ## Known gaps
 

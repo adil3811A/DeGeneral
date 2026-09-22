@@ -5,15 +5,15 @@ before you build a screen, change a colour, or touch a font.
 
 ## Where the theme comes from
 
-The theme is not designed in this repo. It is **ported** from a design system called
-**"Mindful Scribe"**, which lives in Google Stitch:
+The theme is not designed in this repo. It is **ported** from two sibling design systems in
+Google Stitch — **"Mindful Scribe"** for light and **"Nocturnal Sanctuary"** for dark:
 
 | | |
 |---|---|
 | Stitch project | `projects/13240507270798585972` — "AI Daily Journal UI" |
-| Design system | `Mindful Scribe` (asset `c21ce6f0be904afab06b485b9641cbd7`, version 1) |
-| Colour mode | `LIGHT` only |
-| Fonts | Newsreader (headings), Plus Jakarta Sans (body & labels) |
+| Light | `Mindful Scribe` (asset `c21ce6f0be904afab06b485b9641cbd7`), `colorMode: LIGHT` |
+| Dark | `Nocturnal Sanctuary` (asset `3d19f1af088440eaa8bba592336c39d2`), `colorMode: DARK` |
+| Fonts | Newsreader (headings), Plus Jakarta Sans (body & labels) — shared by both |
 
 That matters for how you change things. **Stitch is upstream; this directory is downstream.** If a
 colour looks wrong, the fix is usually in Stitch, followed by a re-port here — not a hand-edit of
@@ -36,13 +36,15 @@ the elevation tiers and the component anatomy.
 shared/src/commonMain/
 ├── composeResources/font/          4 variable fonts + their OFL licenses
 └── kotlin/com/example/de_general/core/ui/theme/
-    ├── Color.kt          47 colour tokens → MindfulScribeLightColors
+    ├── Color.kt          47 light colour tokens → MindfulScribeLightColors
+    ├── ColorDark.kt      47 dark colour tokens → MindfulScribeDarkColors
     ├── Type.kt           11 type slots → Material's 15
     ├── Shape.kt          roundness scale + the pill shape
     ├── Spacing.kt        8pt scale, breakpoints, reading width
     ├── Elevation.kt      the five depth tiers
     ├── MoodColors.kt     mood accents + the feelingColor bridge
-    ├── Theme.kt          MindfulScribeTheme { } and MindfulTheme
+    ├── Theme.kt          MindfulScribeTheme(darkTheme) { } and MindfulTheme
+    ├── ThemeMode.kt      System / Light / Dark — the Settings choice, and isDark()
     └── ThemePreview.kt   MindfulScribeSpecimen() — the visual reference
 ```
 
@@ -131,6 +133,10 @@ mood.glow         // the design's 4% "Mood Glow Bleed" wash
 `nearestTo` parses `#RRGGBB` / `#AARRGGBB` (with or without the `#`) and snaps to the closest of
 the four accents using redmean distance. Null, blank or unparseable input returns Calm.
 
+The **mood** is always chosen against the *light* accents, whichever palette is active; only the
+returned colours come from the active one. Snapping against the dark accents instead would let one
+entry read as Calm in light mode and Reflective in dark. `MoodPaletteTest` pins this.
+
 ### Six moods on four accents
 
 `feature/journal/domain/JournalMood.kt` offers the design's six mood chips — Calm, Joyful,
@@ -165,21 +171,40 @@ cheap — please don't work around them in a screen.
    only from 26. On API 24–25 the variable fonts render at their default instance (wght 400) with
    synthetic bolding, so headings lose the 500 weight and Newsreader loses its optical sizing.
    Layout is unaffected.
-4. **No dark mode.** See below.
+4. **The Android window flashes light before the first frame.** The manifest's window theme is
+   `Theme.Material.Light`, which draws before Compose does. It cannot know the in-app choice (that
+   lives in a file Kotlin reads), so a person on Dark can see a white window for a moment at cold
+   start. Fixing it means a DayNight window theme plus a splash screen — its own change.
 
-## Adding dark mode
+## Dark mode
 
-`MindfulScribeTheme` has no `isSystemInDarkTheme()` branch, on purpose. Stitch produced no dark
-tokens, and hand-picking dark colours here would fork the theme away from its upstream.
+Dark is Nocturnal Sanctuary, ported into `ColorDark.kt` the same way Mindful Scribe went into
+`Color.kt` — same private names, same order. `MindfulScribeTheme(darkTheme)` picks the scheme, the
+mood palette and the shadow tint; the depth tiers follow the scheme through `mindfulElevation`.
 
-The right order is:
+The person chooses **System**, **Light** or **Dark** in Settings. The choice is `ThemeMode`, stored
+as one word by `core/data/ThemePreferences.kt` and read synchronously at startup so the first
+frame is already right. `App` resolves it (`mode.isDark(isSystemInDarkTheme())`) and reports the
+answer to `MainActivity`, which sets the system-bar icons from it — never from
+`SystemBarStyle.auto`, which follows the *system* and is wrong whenever the two differ.
 
-1. Generate a dark variant of the design system in Stitch (`update_design_system` /
-   `create_design_system_from_design_md`).
-2. Port its `namedColors` into a `MindfulScribeDarkColors` in `Color.kt`, the same way the light
-   scheme was ported.
-3. Add the branch in `Theme.kt` and re-derive `LocalMindfulElevation` from the active scheme —
-   `mindfulElevation(colors)` already takes the scheme, so it follows automatically.
+Things to know before touching it:
+
+- **Only the snake_case keys are ported.** Nocturnal Sanctuary's `namedColors` also carries
+  hyphenated duplicates taken from its prose, and some disagree:
+  `surface_container #1d201f` vs `surface-container #212624`, `on_surface #e1e3e1` vs
+  `on-surface #f0eee9`, `outline_variant #414845` vs `outline-variant rgba(255,255,255,0.08)`.
+  The snake_case set is the Material scheme and lines up with the light map, so it wins — the
+  token-map rule above, applied again. If the hyphenated values are what looks right, fix the
+  snake_case ones in Stitch and re-port.
+- **The dark mood accents come from the token map** (`mood-*-bg`, `mood-*-text`, which have no
+  conflicting twin). The dot and the text share the `-text` token, because the design gives no
+  separate accent. Energetic is **rose** in dark where it is coral in light — same slot.
+- **Not a hue-for-hue inversion.** Dark secondary is a second sage and dark tertiary a cool grey,
+  where light has warm sand and lavender. Upstream's decision.
+- **Shadow tint is per scheme** — warm charcoal in light, black in dark (`LightShadowTint`,
+  `DarkShadowTint` in `Elevation.kt`).
+- Dark tier 3 asks for 80% translucency and `blur(20px)`: Known gap 2 again.
 
 ## Re-syncing from Stitch
 
@@ -201,21 +226,24 @@ Then, to pull the current tokens:
 mcp__stitch__list_design_systems(projectId: "13240507270798585972")
 ```
 
-The `theme.namedColors` map on the response is what `Color.kt` mirrors. `theme.typography`,
+The response holds both design systems. Mindful Scribe's `theme.namedColors` is what `Color.kt`
+mirrors; Nocturnal Sanctuary's snake_case keys are what `ColorDark.kt` mirrors, and its
+`mood-*` keys are what `MindfulMoodPaletteDark` mirrors. `theme.typography`,
 `theme.spacing` and the `rounded` block in `theme.designMd` are what `Type.kt`, `Spacing.kt` and
 `Shape.kt` mirror.
 
 ### Checking the port didn't drift
 
-`Color.kt` is a hand transcription of 47 hexes, which is exactly the kind of thing that rots
-silently. After any change to the palette on either side, diff them:
+`Color.kt` and `ColorDark.kt` are hand transcriptions of 47 hexes each, which is exactly the kind
+of thing that rots silently. After any change to either palette on either side, diff them:
 
 ```bash
 python3 tools/check_theme_tokens.py
 ```
 
-It fails loudly on a missing token, a mismatched hex, or a token that exists but was never wired
-into `lightColorScheme(...)`.
+It checks both files and fails loudly on a missing token, a mismatched hex, or a token that exists
+but was never wired into `lightColorScheme(...)` / `darkColorScheme(...)`. The mood palettes are
+not checked.
 
 ## Fonts
 
@@ -247,6 +275,6 @@ python3 tools/check_theme_tokens.py              # palette matches Stitch
 ```
 
 Then look at it. Open `ThemePreview.kt` in Android Studio's preview pane, or run the app — the
-specimen renders every type slot at size, every surface and role colour, the five depth tiers, the
+specimen has a light and a dark preview, and renders every type slot at size, every surface and role colour, the five depth tiers, the
 mood chips and the pill components. **If something in the specimen looks wrong, the theme is wrong,
 not your screen.** A compiling build proves nothing about whether a font actually loaded.

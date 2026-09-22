@@ -12,8 +12,9 @@ import androidx.compose.ui.graphics.Color
  * narrates a few slightly different hexes (canvas `#FBF9F5`, surface-container-low `#F3EFE9`);
  * the token map wins, because that is what the generated screens actually render.
  *
- * Light only. Stitch's `colorMode` is `LIGHT` and it produced no dark tokens, so none are
- * invented here. See [MindfulScribeTheme].
+ * This is the light half. The dark half is ported from a sibling design system, "Nocturnal
+ * Sanctuary", into `ColorDark.kt` ([MindfulScribeDarkColors]) — the same way, with the same names,
+ * and nothing hand-picked. [MindfulScribeTheme] chooses between them.
  */
 
 // Primary — restorative sage.
@@ -76,7 +77,7 @@ private val Outline = Color(0xFF727976)
 private val OutlineVariant = Color(0xFFC1C8C4)
 
 /**
- * The single colour scheme for the app.
+ * The light colour scheme. Selected by [MindfulScribeTheme] when `darkTheme` is false.
  *
  * `scrim` is left at the Material default — the Stitch design system does not define one.
  */

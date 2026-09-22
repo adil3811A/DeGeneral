@@ -8,8 +8,9 @@ import kotlin.math.sqrt
 /**
  * Semantic mood accents from the "Mindful Scribe" design system.
  *
- * These live only in the design system's written guidance, not in its machine-readable token map,
- * so they are transcribed here by hand from the "Dynamic Emotion & Mood Accent Tokens" section.
+ * The light accents live only in Mindful Scribe's written guidance, not in its machine-readable
+ * token map, so they are transcribed by hand from the "Dynamic Emotion & Mood Accent Tokens"
+ * section. The dark accents come from Nocturnal Sanctuary's token map — see [MindfulMoodPaletteDark].
  * They modulate entry tags, contextual cards, highlight tints and analytics badges.
  */
 enum class Mood { Calm, Happy, Reflective, Energetic }
@@ -64,11 +65,18 @@ data class MoodPalette(
      * the four accents instead — which is the "chromatic tones shift quietly" behaviour the design
      * system describes, rather than arbitrary colour.
      *
+     * The *mood* is always chosen against the light accents ([MindfulMoodPalette]), and only the
+     * colours come from this palette. Snapping against this palette's own accents would let one
+     * stored hex land on Calm in light mode and Reflective in dark — an entry's mood changing
+     * with the theme. The light accents are the fixed reference because they are the ones the
+     * model's colours were first judged against.
+     *
      * Returns [calm] for null, blank or unparseable input.
      */
     fun nearestTo(feelingColor: String?): MoodAccent {
         val target = parseHexColor(feelingColor) ?: return calm
-        return all.minBy { colorDistance(it.accent, target) }
+        val mood = MindfulMoodPalette.all.minBy { colorDistance(it.accent, target) }.mood
+        return this[mood]
     }
 }
 
@@ -137,6 +145,46 @@ val MindfulMoodPalette = MoodPalette(
         onContainer = Color(0xFF3D0B03),
     ),
     privacyShield = Color(0xFF3E6857),
+)
+
+/**
+ * The dark mood accents, from Nocturnal Sanctuary's `mood-*-bg` / `mood-*-text` tokens.
+ *
+ * Unlike the light accents these *are* in the machine-readable token map (as hyphenated keys with
+ * no snake_case twin, so the conflict described in `ColorDark.kt` does not reach them).
+ *
+ * Two decisions, recorded rather than buried:
+ *  - **accent == onContainer.** The dark design gives an active chip's text *and* its 6px dot "the
+ *    dedicated mood foreground tint", and its map has no separate accent token. None is invented.
+ *    (Its prose cites `#8ab5a8` as the Calm glow; the token map says `#a8d3c5`, and the map wins.)
+ *  - **Energetic is rose.** Light's fourth accent is coral; dark's is rose. Same slot.
+ */
+val MindfulMoodPaletteDark = MoodPalette(
+    calm = MoodAccent(
+        mood = Mood.Calm,
+        accent = Color(0xFFA8D3C5),      // mood-sage-text
+        container = Color(0xFF243530),   // mood-sage-bg
+        onContainer = Color(0xFFA8D3C5),
+    ),
+    happy = MoodAccent(
+        mood = Mood.Happy,
+        accent = Color(0xFFF0CF9E),      // mood-amber-text
+        container = Color(0xFF362E24),   // mood-amber-bg
+        onContainer = Color(0xFFF0CF9E),
+    ),
+    reflective = MoodAccent(
+        mood = Mood.Reflective,
+        accent = Color(0xFFD2C9E3),      // mood-lavender-text
+        container = Color(0xFF2C2738),   // mood-lavender-bg
+        onContainer = Color(0xFFD2C9E3),
+    ),
+    energetic = MoodAccent(
+        mood = Mood.Energetic,
+        accent = Color(0xFFE8B4BE),      // mood-rose-text
+        container = Color(0xFF38252A),   // mood-rose-bg
+        onContainer = Color(0xFFE8B4BE),
+    ),
+    privacyShield = Color(0xFF8AB5A8),   // privacy-badge-text
 )
 
 val LocalMoodPalette = staticCompositionLocalOf { MindfulMoodPalette }

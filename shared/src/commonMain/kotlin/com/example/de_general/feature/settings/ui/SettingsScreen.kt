@@ -14,16 +14,22 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.example.de_general.core.ui.components.SectionCard
 import com.example.de_general.core.ui.theme.MindfulScribeTheme
 import com.example.de_general.core.ui.theme.MindfulTheme
+import com.example.de_general.core.ui.theme.ThemeMode
+import com.example.de_general.feature.settings.ui.components.ThemeModeSelector
 
 /**
- * A placeholder, and it says so.
+ * Settings. Appearance is real; the rest is still a placeholder, and it says so.
  *
  * The design sketches biometrics, offline keys and an NPU readout behind this tab. None of the
  * three exists, and two of them the app cannot honestly claim at all, so this screen promises
  * nothing until there is something to promise.
  */
 @Composable
-fun SettingsScreen(modifier: Modifier = Modifier) {
+fun SettingsScreen(
+    themeMode: ThemeMode,
+    onThemeModeChange: (ThemeMode) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val spacing = MindfulTheme.spacing
 
     Surface(modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
@@ -36,8 +42,18 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
             Text("Settings", style = MaterialTheme.typography.displayMedium)
 
             SectionCard {
+                Text("Appearance", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "Not built yet.",
+                    "System follows your phone's dark mode setting.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                ThemeModeSelector(selected = themeMode, onSelect = onThemeModeChange)
+            }
+
+            SectionCard {
+                Text(
+                    "More to come.",
                     style = MaterialTheme.typography.titleMedium,
                 )
                 Text(
@@ -54,5 +70,15 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
 @Preview
 @Composable
 private fun SettingsScreenPreview() {
-    MindfulScribeTheme { SettingsScreen() }
+    MindfulScribeTheme(darkTheme = false) {
+        SettingsScreen(themeMode = ThemeMode.System, onThemeModeChange = {})
+    }
+}
+
+@Preview
+@Composable
+private fun SettingsScreenDarkPreview() {
+    MindfulScribeTheme(darkTheme = true) {
+        SettingsScreen(themeMode = ThemeMode.Dark, onThemeModeChange = {})
+    }
 }

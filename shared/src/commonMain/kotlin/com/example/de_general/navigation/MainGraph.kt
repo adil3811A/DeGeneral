@@ -21,6 +21,7 @@ import com.example.de_general.feature.journal.ui.JournalScreen
 import com.example.de_general.feature.journal.ui.JournalViewModel
 import com.example.de_general.feature.onboarding.domain.GemmaThreeOneB
 import com.example.de_general.feature.settings.ui.SettingsScreen
+import com.example.de_general.feature.settings.ui.SettingsViewModel
 
 /**
  * Everything after setup.
@@ -113,7 +114,14 @@ fun NavGraphBuilder.mainGraph(navController: NavController, container: AppContai
             )
         }
 
-        composable<Settings> { SettingsScreen() }
+        composable<Settings> { backStackEntry ->
+            val viewModel = settingsViewModel(backStackEntry, navController, container)
+            val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
+            SettingsScreen(
+                themeMode = themeMode,
+                onThemeModeChange = viewModel::setThemeMode,
+            )
+        }
     }
 }
 
@@ -197,5 +205,23 @@ private fun createJournalViewModel(
             modelLabel = "${GemmaThreeOneB.displayName} · ${GemmaThreeOneB.quantization}",
             now = container.now,
         )
+    }
+}
+
+/**
+ * The settings view model, scoped to the whole main graph like its siblings, so a preference write
+ * that is still on disk when the user taps away is not cancelled on the way out.
+ */
+@Composable
+private fun settingsViewModel(
+    backStackEntry: NavBackStackEntry,
+    navController: NavController,
+    container: AppContainer,
+): SettingsViewModel {
+    val parentEntry = remember(backStackEntry) {
+        navController.getBackStackEntry<MainGraph>()
+    }
+    return viewModel(parentEntry) {
+        SettingsViewModel(container.themePreferences)
     }
 }

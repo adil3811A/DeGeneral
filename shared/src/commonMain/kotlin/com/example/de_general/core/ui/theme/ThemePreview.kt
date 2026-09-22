@@ -24,13 +24,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
 /**
- * A specimen of the "Mindful Scribe" theme: every type slot at its real size, the surface and role
- * colours, the five depth tiers, the mood accents and the pill components.
+ * A specimen of the theme, in whichever scheme it is composed under: every type slot at its real
+ * size, the surface and role colours, the five depth tiers, the mood accents and the pill
+ * components.
  *
  * This is the reference to check a screen against — if something here looks wrong, the theme is
  * wrong, not the screen.
@@ -78,16 +80,16 @@ fun MindfulScribeSpecimen(modifier: Modifier = Modifier) {
 
             SpecimenSection("Colour roles", type.headlineMd) {
                 val scheme = MaterialTheme.colorScheme
-                Swatch("primary #324F47", scheme.primary, scheme.onPrimary)
-                Swatch("primaryContainer #4A675F", scheme.primaryContainer, scheme.onPrimaryContainer)
-                Swatch("secondaryContainer #F1DCC8", scheme.secondaryContainer, scheme.onSecondaryContainer)
-                Swatch("tertiaryContainer #685D73", scheme.tertiaryContainer, scheme.onTertiaryContainer)
-                Swatch("surface #FDF9F5", scheme.surface, scheme.onSurface)
-                Swatch("surfaceContainerLow #F7F3EF", scheme.surfaceContainerLow, scheme.onSurface)
-                Swatch("surfaceContainerHighest #E6E2DE", scheme.surfaceContainerHighest, scheme.onSurface)
-                Swatch("surfaceDim #DDD9D6", scheme.surfaceDim, scheme.onSurface)
-                Swatch("inverseSurface #31302E", scheme.inverseSurface, scheme.inverseOnSurface)
-                Swatch("error #BA1A1A", scheme.error, scheme.onError)
+                Swatch("primary", scheme.primary, scheme.onPrimary)
+                Swatch("primaryContainer", scheme.primaryContainer, scheme.onPrimaryContainer)
+                Swatch("secondaryContainer", scheme.secondaryContainer, scheme.onSecondaryContainer)
+                Swatch("tertiaryContainer", scheme.tertiaryContainer, scheme.onTertiaryContainer)
+                Swatch("surface", scheme.surface, scheme.onSurface)
+                Swatch("surfaceContainerLow", scheme.surfaceContainerLow, scheme.onSurface)
+                Swatch("surfaceContainerHighest", scheme.surfaceContainerHighest, scheme.onSurface)
+                Swatch("surfaceDim", scheme.surfaceDim, scheme.onSurface)
+                Swatch("inverseSurface", scheme.inverseSurface, scheme.inverseOnSurface)
+                Swatch("error", scheme.error, scheme.onError)
             }
 
             SpecimenSection("Depth tiers", type.headlineMd) {
@@ -173,9 +175,18 @@ private fun Swatch(label: String, background: Color, foreground: Color) {
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.small)
             .padding(horizontal = MindfulTheme.spacing.md, vertical = MindfulTheme.spacing.md),
     ) {
-        Text(label, style = MaterialTheme.typography.labelLarge, color = foreground)
+        // The hex is read off the colour actually drawn, so the dark specimen cannot show the
+        // light palette's numbers.
+        Text(
+            "$label ${background.toHexLabel()}",
+            style = MaterialTheme.typography.labelLarge,
+            color = foreground,
+        )
     }
 }
+
+private fun Color.toHexLabel(): String =
+    "#" + (toArgb() and 0xFFFFFF).toString(16).uppercase().padStart(6, '0')
 
 @Composable
 private fun Tier(label: String, tier: MindfulTier, style: androidx.compose.ui.text.TextStyle) {
@@ -214,5 +225,12 @@ private fun MoodChip(accent: MoodAccent, style: androidx.compose.ui.text.TextSty
 @Preview
 @Composable
 private fun MindfulScribeSpecimenPreview() {
-    MindfulScribeTheme { MindfulScribeSpecimen() }
+    MindfulScribeTheme(darkTheme = false) { MindfulScribeSpecimen() }
+}
+
+/** The same specimen on Nocturnal Sanctuary. If one of the two looks wrong, that palette is wrong. */
+@Preview
+@Composable
+private fun MindfulScribeSpecimenDarkPreview() {
+    MindfulScribeTheme(darkTheme = true) { MindfulScribeSpecimen() }
 }

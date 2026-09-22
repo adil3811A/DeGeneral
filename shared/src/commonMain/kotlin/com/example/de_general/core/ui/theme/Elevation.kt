@@ -46,18 +46,35 @@ data class MindfulElevation(
     val bar: MindfulTier,
     /** Level 4 — privacy audit modals, passcode and biometric prompts. */
     val dialog: MindfulTier,
-) {
-    /** Warm charcoal cast for ambient/spot shadow colour, per the design's `rgba(60, 52, 42, …)`. */
-    val shadowTint: Color = Color(0xFF3C342A)
-}
+    /** Ambient/spot shadow colour. Per scheme — see [LightShadowTint] and [DarkShadowTint]. */
+    val shadowTint: Color,
+)
 
-fun mindfulElevation(colors: ColorScheme): MindfulElevation = MindfulElevation(
+/** Warm charcoal, per Mindful Scribe's `rgba(60, 52, 42, …)` shadows. */
+val LightShadowTint = Color(0xFF3C342A)
+
+/**
+ * Plain black, per Nocturnal Sanctuary's `rgba(0, 0, 0, …)` shadows. A warm cast would read as mud
+ * against an obsidian canvas.
+ */
+val DarkShadowTint = Color(0xFF000000)
+
+/**
+ * The tiers, derived from whichever scheme is active — so dark mode needs no second table.
+ *
+ * Nocturnal Sanctuary's prose names its own tier surfaces (`#212624` for cards, for instance).
+ * Those are the hyphenated tokens `ColorDark.kt` deliberately does not port, so the tiers follow
+ * the snake_case scheme here too. Its tier 3 asks for 80% translucency plus `blur(20px)`; that is
+ * the same missing portable blur as the light tier 3, noted in the file KDoc.
+ */
+fun mindfulElevation(colors: ColorScheme, shadowTint: Color): MindfulElevation = MindfulElevation(
     canvas = MindfulTier(colors.surface, 0.dp, borderAlpha = 0f),
     card = MindfulTier(colors.surfaceContainerLow, 0.dp, borderAlpha = 0.4f),
     floating = MindfulTier(colors.surfaceContainerLowest, 4.dp, borderAlpha = 0f),
     bar = MindfulTier(colors.surfaceContainer, 2.dp, borderAlpha = 0.3f),
     dialog = MindfulTier(colors.surfaceContainerLowest, 12.dp, borderAlpha = 0f),
+    shadowTint = shadowTint,
 )
 
 val LocalMindfulElevation =
-    staticCompositionLocalOf { mindfulElevation(MindfulScribeLightColors) }
+    staticCompositionLocalOf { mindfulElevation(MindfulScribeLightColors, LightShadowTint) }

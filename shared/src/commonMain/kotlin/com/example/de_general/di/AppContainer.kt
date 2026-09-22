@@ -4,6 +4,8 @@ import com.example.de_general.core.ai.LlamatikEngine
 import com.example.de_general.core.ai.LlmEngine
 import com.example.de_general.core.data.DatabaseFactory
 import com.example.de_general.core.data.DeGeneralDatabase
+import com.example.de_general.core.data.PreferencesStorage
+import com.example.de_general.core.data.ThemePreferences
 import com.example.de_general.core.data.createDatabase
 import com.example.de_general.feature.chat.data.ChatRepository
 import com.example.de_general.feature.journal.data.JournalRepository
@@ -19,9 +21,9 @@ import io.ktor.client.HttpClient
  * size, and the decision is not "until it grows" — it is until constructing this by hand actually
  * hurts. Adding a field here is cheaper than adding a framework.
  *
- * [deviceProbe], [modelStorage] and [databaseFactory] are passed in rather than built here because
- * each is an `expect class` whose constructor differs per target: Android needs a `Context`, iOS
- * needs nothing. [now] is supplied per platform too, with no default, which keeps a wall clock out
+ * [deviceProbe], [modelStorage], [databaseFactory] and [preferencesStorage] are passed in rather
+ * than built here because each is an `expect class` whose constructor differs per target: Android
+ * needs a `Context`, iOS needs nothing. [now] is supplied per platform too, with no default, which keeps a wall clock out
  * of common code and forces both entry points to be explicit about where the time comes from.
  */
 class AppContainer(
@@ -36,8 +38,20 @@ class AppContainer(
      * stop agreeing.
      */
     val now: () -> Long,
+    preferencesStorage: PreferencesStorage,
     httpClient: HttpClient = HttpClient(),
 ) {
+    /**
+     * System, Light or Dark.
+     *
+     * Eager, not lazy: `App` reads it to pick the theme for the very first frame, and the read is
+     * one tiny file — nothing like the cost the lazy database below is avoiding.
+     */
+    val themePreferences: ThemePreferences = ThemePreferences(
+        fileSystem = preferencesStorage.fileSystem,
+        file = preferencesStorage.directory / "theme_mode",
+    )
+
     val modelInstaller: ModelInstaller = ModelInstaller(httpClient, modelStorage)
 
     // Lazy: this container is built in Activity.onCreate on the main thread, and opening a SQLite

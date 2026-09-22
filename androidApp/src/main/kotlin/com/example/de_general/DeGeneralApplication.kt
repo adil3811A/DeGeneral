@@ -2,6 +2,7 @@ package com.example.de_general
 
 import android.app.Application
 import com.example.de_general.core.data.DatabaseFactory
+import com.example.de_general.core.data.PreferencesStorage
 import com.example.de_general.di.AppContainer
 import com.example.de_general.feature.onboarding.domain.DeviceProbe
 import com.example.de_general.feature.onboarding.domain.ModelStorage
@@ -24,6 +25,7 @@ class DeGeneralApplication : Application() {
             deviceProbe = DeviceProbe(this),
             modelStorage = ModelStorage(this),
             databaseFactory = DatabaseFactory(this),
+            preferencesStorage = PreferencesStorage(this),
             now = System::currentTimeMillis,
         )
     }

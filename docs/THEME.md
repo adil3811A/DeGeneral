@@ -1,6 +1,6 @@
 # The Mindful Scribe theme
 
-This is the guide to `shared/src/commonMain/kotlin/com/example/de_general/core/ui/theme/`. Read it
+This is the guide to `shared/src/commonMain/kotlin/com/adll/de_general/core/ui/theme/`. Read it
 before you build a screen, change a colour, or touch a font.
 
 ## Where the theme comes from
@@ -35,7 +35,7 @@ the elevation tiers and the component anatomy.
 ```
 shared/src/commonMain/
 ├── composeResources/font/          4 variable fonts + their OFL licenses
-└── kotlin/com/example/de_general/core/ui/theme/
+└── kotlin/com/adll/de_general/core/ui/theme/
     ├── Color.kt          47 light colour tokens → MindfulScribeLightColors
     ├── ColorDark.kt      47 dark colour tokens → MindfulScribeDarkColors
     ├── Type.kt           11 type slots → Material's 15
@@ -205,6 +205,9 @@ Things to know before touching it:
 - **Shadow tint is per scheme** — warm charcoal in light, black in dark (`LightShadowTint`,
   `DarkShadowTint` in `Elevation.kt`).
 - Dark tier 3 asks for 80% translucency and `blur(20px)`: Known gap 2 again.
+- **The root of `AppNavHost` paints `colorScheme.background`.** Page transitions slide by 1/6 and
+  cross-fade, which uncovers whatever is behind the `NavHost`. Without that background it is the
+  light Android window, which shows as a light strip and wash mid-transition in dark mode.
 
 ## Re-syncing from Stitch
 

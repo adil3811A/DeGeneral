@@ -130,7 +130,7 @@ upstream moved.
 
 ## The plan, file by file
 
-Paths are under `shared/src/commonMain/kotlin/com/example/de_general/` unless stated.
+Paths are under `shared/src/commonMain/kotlin/com/adll/de_general/` unless stated.
 
 ### 1. `core/ui/theme/ColorDark.kt` (new)
 

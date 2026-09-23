@@ -20,11 +20,11 @@ dependencies {
 }
 
 android {
-    namespace = "com.example.de_general"
+    namespace = "com.adll.de_general"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "com.example.de_general"
+        applicationId = "com.adll.de_general"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1

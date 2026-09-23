@@ -2,7 +2,7 @@
 
 How the model gets onto the device, and what the onboarding screens promise about it.
 
-Code lives in `shared/src/commonMain/kotlin/com/example/de_general/feature/onboarding/domain/`
+Code lives in `shared/src/commonMain/kotlin/com/adll/de_general/feature/onboarding/domain/`
 (engine) and `.../feature/onboarding/ui/` (the two screens). The strings and figures those
 screens show are derived in `InstallCopy.kt` and `WelcomeCopy.kt` beside them — pure functions
 with no Compose import, so every milestone label and progress line is covered by `commonTest`
@@ -225,9 +225,10 @@ Same rule as the onboarding screens, applied to the Stitch screen "Companion Cha
 | "Encrypted" on message rows | The app encrypts nothing of its own. Same rule as the journal. |
 | The "Suggested Journal Prompt" card | Needs structured output from a model that has never run. |
 
-What *is* real: the offline badge, the context chip (it counts entries that exist — `0` says "no
-entries yet"), and both reply actions — "Reflect deeper" sends a genuine follow-up turn, "Save
-insight" writes a real journal entry.
+What *is* real: the offline badge, both reply actions — "Reflect deeper" sends a genuine follow-up
+turn, "Save insight" writes a real journal entry — and "Clear chat", which deletes every chat row
+after a confirmation. (A context chip counting the entries given to the model used to sit where the
+clear button is; it was removed at the owner's request, and the entries are still passed.)
 
 ## What the Create Journal screen deliberately does not claim
 

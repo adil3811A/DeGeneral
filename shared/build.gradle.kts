@@ -34,7 +34,7 @@ kotlin {
     }
     
     android {
-       namespace = "com.example.de_general.shared"
+       namespace = "com.adll.de_general.shared"
        compileSdk = libs.versions.android.compileSdk.get().toInt()
        minSdk = libs.versions.android.minSdk.get().toInt()
     

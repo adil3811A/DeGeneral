@@ -128,7 +128,7 @@ STITCH_DARK_NAMED_COLORS = {
 
 THEME_DIR = (
     Path(__file__).resolve().parent.parent
-    / "shared/src/commonMain/kotlin/com/example/de_general/core/ui/theme"
+    / "shared/src/commonMain/kotlin/com/adll/de_general/core/ui/theme"
 )
 
 # (label, expected tokens, Kotlin file, scheme builder the vals must be wired into)

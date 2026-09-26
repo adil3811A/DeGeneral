@@ -51,10 +51,13 @@ jobs:
         run: chmod +x gradlew
 
       # The project ships no shared scheme (only project.pbxproj), so build the
-      # target directly instead of a scheme. CODE_SIGNING_ALLOWED=NO produces a
-      # device .app with no signature at all — exactly what the free-Apple-ID
-      # sideload tools expect to re-sign. No certificate exists on this runner
-      # and none should be looked for.
+      # target directly instead of a scheme. A -target build cannot take
+      # -derivedDataPath (xcodebuild rejects the combination: it requires
+      # -scheme), so SYMROOT/OBJROOT overrides pin the output location instead —
+      # they are ordinary build-setting overrides and legal with -target.
+      # CODE_SIGNING_ALLOWED=NO produces a device .app with no signature at
+      # all — exactly what the free-Apple-ID sideload tools expect to re-sign.
+      # No certificate exists on this runner and none is wanted.
       - name: Build DeGeneral.app for iOS devices (unsigned)
         run: |
           xcodebuild -version
@@ -63,20 +66,24 @@ jobs:
             -target iosApp \
             -configuration Release \
             -sdk iphoneos \
-            -destination "generic/platform=iOS" \
-            -derivedDataPath build/ios \
             ARCHS=arm64 \
+            SYMROOT="$PWD/build/sym" \
+            OBJROOT="$PWD/build/obj" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             COMPILER_INDEX_STORE_ENABLE=NO \
             build
 
-      # An .ipa is just a zip with the .app inside a Payload/ folder.
+      # An .ipa is just a zip with the .app inside a Payload/ folder. SYMROOT
+      # above pins exactly where the build put it.
       - name: Package unsigned IPA
         run: |
+          APP_DIR="$PWD/build/sym/Release-iphoneos"
+          test -d "$APP_DIR/DeGeneral.app" || { echo "DeGeneral.app not found under $APP_DIR"; ls -R "$PWD/build" || true; exit 1; }
+          echo "Packaging: $APP_DIR/DeGeneral.app"
           mkdir -p dist/Payload
-          cp -R "build/ios/Build/Products/Release-iphoneos/DeGeneral.app" dist/Payload/
+          cp -R "$APP_DIR/DeGeneral.app" dist/Payload/
           cd dist
           zip -qry "DeGeneral-unsigned-${{ github.run_number }}.ipa" Payload
 

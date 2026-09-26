@@ -27,8 +27,8 @@ android {
         applicationId = "com.adll.de_general"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.0-alpha-01"
 
         ndk {
             // llama.cpp ships four ABIs; two of them are 32-bit, and Compatibility.kt already

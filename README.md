@@ -113,11 +113,13 @@ another feature.
 | [docs/LOCAL_AI.md](./docs/LOCAL_AI.md) | The pinned model, the resumable and verified install, and what the screens refuse to claim. |
 | [docs/CREATE_JOURNAL.md](./docs/CREATE_JOURNAL.md) | The design of the composer. |
 | [docs/DARK_THEME.md](./docs/DARK_THEME.md) | How dark mode and the appearance setting were built. |
+| [docs/IOS_BUILD.md](./docs/IOS_BUILD.md) | Building an unsigned iOS IPA on GitHub Actions from a Linux machine, and sideloading it with a free Apple ID — no Mac, no developer account. |
 
 ## Building and testing
 
 - Android app: `./gradlew :androidApp:assembleDebug`
-- iOS app: open [/iosApp](./iosApp) in Xcode and run it from there (untested so far).
+- iOS app: no Mac needed — see [docs/IOS_BUILD.md](./docs/IOS_BUILD.md). Pushing to `master` builds an
+  unsigned IPA on GitHub Actions; sideload it with a free Apple ID. Still untested on a device.
 - Tests: `./gradlew :shared:testAndroidHostTest` (Android host) or
   `./gradlew :shared:iosSimulatorArm64Test` (iOS simulator)
 - Check that the colour palettes still match Stitch: `python3 tools/check_theme_tokens.py`

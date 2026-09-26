@@ -1,0 +1,88 @@
+name: iOS unsigned IPA
+
+# Builds the iOS app on a free GitHub-hosted Mac and packages it as an UNSIGNED
+# .ipa. There is no Apple developer account, so there is no certificate to sign
+# with at build time — and none is wanted: the IPA gets signed with a free
+# personal Apple ID at INSTALL time, by SideStore or AltStore on the iPhone.
+# See docs/IOS_BUILD.md for the full story and the install routes.
+#
+# Why a Mac runner at all: Kotlin/Native can compile the Apple targets anywhere
+# but can only LINK them on macOS (it drives Apple's own linker), so a local
+# Linux build of the iOS app is not possible.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - "shared/**"
+      - "iosApp/**"
+      - "gradle/**"
+      - "gradlew"
+      - "gradle.properties"
+      - "settings.gradle.kts"
+      - "build.gradle.kts"
+      - ".github/workflows/ios-unsigned-ipa.yml"
+
+concurrency:
+  group: ios-unsigned-ipa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      # The Xcode project's "Compile Kotlin Framework" build phase calls
+      # ./gradlew, which needs a JVM on the runner.
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Gradle (with cache)
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      # The project ships no shared scheme (only project.pbxproj), so build the
+      # target directly instead of a scheme. CODE_SIGNING_ALLOWED=NO produces a
+      # device .app with no signature at all — exactly what the free-Apple-ID
+      # sideload tools expect to re-sign. No certificate exists on this runner
+      # and none should be looked for.
+      - name: Build DeGeneral.app for iOS devices (unsigned)
+        run: |
+          xcodebuild -version
+          xcodebuild \
+            -project iosApp/iosApp.xcodeproj \
+            -target iosApp \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination "generic/platform=iOS" \
+            -derivedDataPath build/ios \
+            ARCHS=arm64 \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            build
+
+      # An .ipa is just a zip with the .app inside a Payload/ folder.
+      - name: Package unsigned IPA
+        run: |
+          mkdir -p dist/Payload
+          cp -R "build/ios/Build/Products/Release-iphoneos/DeGeneral.app" dist/Payload/
+          cd dist
+          zip -qry "DeGeneral-unsigned-${{ github.run_number }}.ipa" Payload
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DeGeneral-iOS-unsigned-${{ github.run_number }}
+          path: dist/*.ipa
+          if-no-files-found: error

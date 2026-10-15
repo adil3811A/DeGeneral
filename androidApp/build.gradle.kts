@@ -27,8 +27,8 @@ android {
         applicationId = "com.adll.de_general"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 2
-        versionName = "1.0-alpha-01"
+        versionCode = 4
+        versionName = "1.0-alpha-03"
 
         ndk {
             // llama.cpp ships four ABIs; two of them are 32-bit, and Compatibility.kt already
@@ -44,7 +44,11 @@ android {
     }
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8 on, with keep rules in proguard-rules.pro covering Llamatik's JNI
+            // callbacks and the serialization-driven navigation routes. The mapping
+            // file produced here is uploaded to Play against the App Bundle:
+            // build/outputs/mapping/release/mapping.txt
+            isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
